@@ -18,9 +18,10 @@ Require Import Relation_Operators Program.
 Close Scope program_scope.
 From Equations Require Import Equations.
 
-(* bounded numbers *)
 Require Export Stlc.Fin.
-
+Require Export Stlc.Classes.
+Import SyntaxNotations.
+Open Scope syntax_scope.
 
 (***********************************************************************)
 (** * Syntax of STLC *)
@@ -250,18 +251,6 @@ Ltac simp_stlc := repeat first [
 
 (* single parameter for now *)
 
-Class Syntax ( e : nat -> Set ) := {
-   (* To state the subst_intro lemma generically, we need to know 
-      the var constructor of the datatype. *)
-    evar  : forall {n}, var -> e n ;
-
-    fv : forall {n}, e n -> vars ;
-    size : forall {n}, e n -> nat ;
-    weaken : forall {n}, e n -> e (S n) ;
-    close : forall {n}, atom -> e n -> e (S n) ;
-    open  : forall {n},  e n -> e (S n) -> e n ;
-    subst : forall {n}, e n -> atom -> e n -> e n
-}.
 
 Instance Syntax_exp : Syntax exp := { 
     evar := fun n => @var_f n;
@@ -291,7 +280,6 @@ Proof. reflexivity. Qed.
 Lemma fv_exp_app : forall n (e1 : exp n) (e2: exp n), fv (app e1 e2) = fv e1 `union` fv e2.
 Proof. reflexivity. Qed.
 
-Create HintDb fv.
 Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
 
 (* Re-define behavior of size in terms of size_exp *)
@@ -304,7 +292,6 @@ Proof. reflexivity. Qed.
 Lemma size_exp_app : forall n (e1 : exp n) (e2: exp n), size (app e1 e2) = 1 + size e1 + size e2.
 Proof. reflexivity. Qed.
 
-Create HintDb size.
 Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
 
 Lemma weaken_exp_var_b : forall n (m: fin n),   weaken  (var_b m) = var_b (increase_fin m).
@@ -316,7 +303,6 @@ Proof. reflexivity. Qed.
 Lemma weaken_exp_app : forall n (e1 : exp n) (e2: exp n), weaken (app e1 e2) = app (weaken e1) (weaken e2).
 Proof. reflexivity. Qed.
 
-Create HintDb weaken.
 Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
 
 Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), open u (var_b m) = 
@@ -335,7 +321,6 @@ Lemma open_exp_app : forall n (u:exp n) (e1 : exp (S n)) (e2: exp (S n)),
     open u (app e1 e2) = app (open u e1) (open u e2).
 Proof. reflexivity. Qed.
 
-Create HintDb open.
 Hint Rewrite open_exp_var_b open_exp_var_f open_exp_abs open_exp_app : open.
 
 Lemma subst_exp_var_b : forall n (u:exp n) (y:atom) (m: fin n), 
@@ -351,47 +336,12 @@ Lemma subst_exp_app : forall n (u:exp n) (y:atom) (e1 : exp n) (e2: exp n),
     subst u y (app e1 e2) = app (subst u y e1) (subst u y e2).
 Proof. reflexivity. Qed.
 
-Create HintDb subst.
 Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
 
 
-Class SyntaxTheory (ex : nat -> Set ) `{H: Syntax ex } := {
-   size_weaken : forall n (t : ex n), size (weaken t) = size t;
-   fv_weaken : forall n1 (e1 : ex n1), fv (weaken e1) = fv e1;
-   size_min : forall n (e : ex n), 1 <= size e;
-
-   subst_intro  : forall n (e1 : ex (S n)) (x1:atom) (e2 : ex n),
-      x1 `notin` fv e1 ->
-      open e2 e1 = subst e2 x1 (open (evar x1) e1) ;
-
-   subst_open_var : forall n1 (e2 : exp (S n1)) e1 x1 x2,
-        x1 <> x2 ->
-        open (evar x2) (subst (weaken e1) x1 e2) = 
-          subst e1 x1 (open (evar x2) e2)
-   }.
 
 
 
-(***********************************************************************)
-(** * Notations *)
-(***********************************************************************)
-
-
-(** Many common applications of opening replace index zero with an
-    expression or variable.  The following definition provides a
-    convenient shorthand for such uses.  Note that the order of
-    arguments is switched relative to the definition above.  For
-    example, [(open e x)] can be read as "substitute the variable [x]
-    for index [0] in [e]" and "open [e] with the variable [x]."
-*)
-
-Declare Scope exp_scope.
-Module StlcNotations.
-Notation "[ z ~> u ] e" := (subst u z e) (at level 0) : exp_scope.
-Notation "e ^ x"        := (open (evar x) e) : exp_scope.
-End StlcNotations.
-Import StlcNotations.
-Open Scope exp_scope.
 
 (***********************************************************************)
 (** * Typing contexts *)

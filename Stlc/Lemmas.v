@@ -13,7 +13,12 @@ Unset Printing Implicit Defensive.
 Require Export Metalib.Metatheory.
 Require Export Metalib.LibLNgen.
 
+Import Coq.Classes.RelationClasses.
 Require Import Lia.
+
+Require Import Stlc.Classes.
+Import SyntaxNotations.
+Open Scope syntax_scope.
 
 Require Export Stlc.Definitions.
 
@@ -27,6 +32,9 @@ Require Export Stlc.Definitions.
 
 #[global] Hint Resolve @plus_le_compat : lngen.
 
+(* Can't do this automatically b/c we need to have the 
+   equality around. But then the option in the equality
+   will also be eliminated if this tactic is repeated. *)
 Ltac destruct_option :=
   let rec main x :=
     let h := fresh "EQ" in
@@ -85,9 +93,11 @@ Hint Rewrite fv_exp_weaken_exp : weaken_exp.
 (** * Theorems about [size] *)
 
 Lemma size_exp_min :
-(forall n (e1 : exp n), 1 <= size_exp e1).
+(forall n (e1 : exp n), 1 <= size e1).
 Proof.
-  intros n e1.  dependent induction e1; default_simp.  
+  intros n e1.  dependent induction e1; default_simp.
+  all: simp size.
+
 Admitted. (* lia ??? *)
 
 #[global] Hint Resolve size_exp_min : lngen.
@@ -533,5 +543,6 @@ Instance STE :  SyntaxTheory exp := {
   subst_intro := subst_exp_wrt_exp_intro;
   subst_open_var := subst_exp_open_exp_wrt_exp_var 
 }.
+(* TODO: fill in the rest *)
 
 Opaque Syntax_exp.

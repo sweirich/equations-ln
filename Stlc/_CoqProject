@@ -1,4 +1,5 @@
 -R . Stlc
+Classes.v
 Fin.v
 Definitions.v
 Lemmas.v
