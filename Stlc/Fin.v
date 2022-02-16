@@ -110,8 +110,39 @@ Equations decrease_fin (k : nat) (m : fin (S k)) : option (fin k) :=
 (* coerce m to a larger range. does not change the value of m. *)
 (* used in "close" operation. *)
 Equations increase_fin {n : nat} (m : fin n) : fin (S n) :=
-  increase_fin fO := fO;
-  increase_fin (fS m) := fS (increase_fin m). 
+  increase_fin (@fO n1) := fO;
+  increase_fin (@fS n1 m) := fS (increase_fin m). 
+
+(* 
+pf : a + b = b + a
+
+match pf with 
+ | eq_refl => ...
+end
+
+eta rules
+
+function:
+if a : A -> B then  a = \x. a x
+
+[empty context]
+|- a : A -> B then  a ~>* \y. a'   [type soundness]
+
+    a = (\y.a')  ==?  \x. (\y.a') x  == \x. a'{x/y}
+
+product
+if a : A * B then a = (fst a, snd a)
+
+unit
+if a : unit  then a = ()
+
+equality type (axiom K)
+
+if a : A = B then a = refl
+
+
+
+*)
 
 (* coerce m to a much larger range. does not change the value of m. *)
 Equations weaken_fin {n : nat} (k:nat) (m : fin n) : fin (n + k) :=

@@ -433,15 +433,16 @@ Proof.
 (** *** Exercise [typing_subst]
 
     Complete the proof of the substitution lemma. The proof proceeds
-    by induction on the typing derivation for [e].  The initial steps
-    should use [remember as] and [generalize dependent] in a manner
-    similar to the proof of weakening.
+    by induction on the typing derivation for [e]. Use [dependent 
+    induction].
 
    HINTS:
       - Use the lemma proved above for the [typing_var] case.
 
       - The [typing_abs] case follows from the induction hypothesis.
-          -- Use [simpl] to simplify the substitution.
+          -- Use [simp subst] to simplify the substitution.
+
+          -- apply the [typing_abs] constructor.
 
           -- In order to use the induction hypothesis, use [subst_var]
              to push the substitution under the opening operation.
@@ -450,7 +451,7 @@ Proof.
              and [simpl_env] tactics.
 
       - The [typing_app] case follows from the induction hypotheses.
-        Use [simpl] to simplify the substitution.
+        Use [simp subst] to simplify the substitution.
 *)
 
 Lemma typing_subst : forall (E F : ctx) e u S T (z : atom),
@@ -458,6 +459,17 @@ Lemma typing_subst : forall (E F : ctx) e u S T (z : atom),
   typing E u S ->
   typing (F ++ E) ([z ~> u] e) T.
 Proof.
+  intros.
+  dependent induction H.
+  - eapply typing_subst_var_case; eauto.
+  - simp subst.
+    pick fresh x and apply typing_abs.
+    rewrite subst_open_var; auto.
+    rewrite_env (((x ~ T1)++F)++E).
+    eapply H0; eauto.
+    auto.
+  - simp subst.
+    eauto.
 (* FILL IN HERE *) Admitted.
 
 (** *** Exercise [typing_subst_simpl]
@@ -531,9 +543,21 @@ Lemma preservation : forall (E : ctx) e e' T,
   typing E e' T.
 Proof.
   intros E e e' T H.
-  generalize dependent e'.
-  induction H; intros e' J.
-(* FILL IN HERE *) Admitted.
+  generalize e'.
+  dependent induction H; intros e0' S; inversion S; subst.
+  - apply inj_pair2 in H2.
+    apply inj_pair2 in H3.
+    subst.
+    inversion H; subst.
+    apply inj_pair2 in H1. subst.
+    pick fresh x for (L \u fv e0).
+    rewrite (subst_intro _ _ x); auto.
+    eapply typing_subst_simple; auto.
+  - apply inj_pair2 in H1.
+    apply inj_pair2 in H3.
+    subst.
+    eauto.
+Qed.
 
 (*************************************************************************)
 (** ** Progress *)
@@ -691,7 +715,7 @@ Proof.
       eapply typing_uniq; eauto.
     assert (J' : uniq E).
       inversion J; eauto.
-    rewrite (@subst_exp_intro x); eauto.
+    rewrite (subst_intro _ _ x); eauto.  (* why does x1=x not work here? *)
     rewrite_env (nil ++ [(y, T1)] ++ E).
     apply typing_subst with (S := T1).
     simpl_env.

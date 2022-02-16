@@ -4,27 +4,21 @@
 
 (** This file containes all of the definitions for a locally-nameless
     representation of a Curry-Style simply-typed lambda calculus.
-
-    This file was generated via Ott from `stlc.ott` and then edited to
-    include explanation about the definitions. As a result, it is gathers
-    all of the STLC definitions in one place, but the associated
-    exercises are found elsewhere in the tutorial.  You'll want to refer
-    back to this file as you progress through the rest of the
-    material. *)
+*)
 
 
 Require Import Metalib.Metatheory.
 Require Import Metalib.LibLNgen.
 
-(* ssreflect *)
-From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import Utf8 Arith Compare_dec Lia.
 
+(* equations *)
 Set Warnings "-notation-overridden".
 Require Import Relation_Operators Program.
 Close Scope program_scope.
 From Equations Require Import Equations.
 
+(* bounded numbers *)
 Require Export Stlc.Fin.
 
 
@@ -48,12 +42,16 @@ Inductive typ : Set :=  (*r types *)
 
 Scheme Equality for typ.
 
-(*  produces 
+(*  the line above produces the definition
 
 typ_eq_dec
      : forall x y : typ, {x = y} + {x <> y}
 *)
 
+(* Expressions are indexed by the number of *bound variables*
+   that appear in terms. *)
+
+Definition v (e : nat -> Set) := var.
 
 Inductive exp : nat ->  Set :=  (*r expressions *)
  | var_b : forall {n}, fin n -> exp n
@@ -64,15 +62,7 @@ Inductive exp : nat ->  Set :=  (*r expressions *)
 (* Cargo culting equations *)
 Derive Signature NoConfusion NoConfusionHom for exp.
 
-(*
-Equations exp_beq {n} (e1 : exp n) (e2: exp n) : bool :=
- exp_beq (var_b m1) (var_b m2) := fin_beq m1 m2 ;
- exp_beq (var_f x1) (var_f x2) := eqb x1 x2 ;
- exp_beq (abs e1) (abs e2) :=  exp_beq e1 e2 ;
- exp_beq (app e1 e2) (app e3 e4) := andb (exp_beq e1 e3) (exp_beq e2 e4);
- exp_beq  _  _ := false.
-*)
-
+(* Decidable equality for expressions *)
 Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
  exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
       exp_eq_dec _ _ (left eq_refl) := left _ ; 
@@ -94,8 +84,6 @@ Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } :
 
  exp_eq_dec  _  _ := in_right.
 
-(* Extraction exp_eq_dec. *)
-
 (* The size of an expression *)
 Fixpoint size_exp {n} (e1 : exp n) : nat :=
   match e1 with
@@ -105,12 +93,12 @@ Fixpoint size_exp {n} (e1 : exp n) : nat :=
     | app e2 e3 => 1 + (size_exp e2) + (size_exp e3)
   end.
 
-(* Weaken the number of binders allowed in an expression *)
+(* Weaken the number of binders allowed in an expression by 1 *)
 Equations weaken_exp {n} (e : exp n): exp (S n):= {
   weaken_exp  (var_b m) => var_b (increase_fin m);
   weaken_exp  (var_f x) => var_f x;
   weaken_exp  (abs t)   => abs (weaken_exp t);
-  weaken_exp  (app f t) => app (weaken_exp f)(weaken_exp t)
+  weaken_exp  (app f t) => app (weaken_exp f) (weaken_exp t)
   }.
 
 (* Weakening *)
@@ -142,22 +130,15 @@ Hint Rewrite size_exp_weaken using solve [auto] : lngen.
    free variable, we introduce it at the current binding depth using gof.
  *)
 
-Equations close_exp_wrt_exp_rec {k : nat} (x1 : var) (e1 : exp k) : exp (S k) :=
-  close_exp_wrt_exp_rec x1 (var_b m) := 
+Equations close_exp_wrt_exp {k : nat} (x1 : var) (e1 : exp k) : exp (S k) :=
+  close_exp_wrt_exp x1 (var_b m) := 
     var_b (increase_fin m);
-  close_exp_wrt_exp_rec x1 (@var_f k x2) := 
+  close_exp_wrt_exp x1 (@var_f k x2) := 
     if (x1 == x2) then (var_b (gof k)) else (var_f x2);
-  close_exp_wrt_exp_rec x1 (abs e2) := 
-    abs (close_exp_wrt_exp_rec x1 e2);
-  close_exp_wrt_exp_rec x1 (app e2 e3) := 
-    app (close_exp_wrt_exp_rec x1 e2) (close_exp_wrt_exp_rec x1 e3).
-
-Definition close_exp_wrt_exp (x1:var) (e1 : exp 0) : exp 1 := close_exp_wrt_exp_rec x1 e1.
-
-Lemma close_exp_wrt_exp_def : forall x e, close_exp_wrt_exp x e = close_exp_wrt_exp_rec x e.
-Proof. auto. Qed.
-Hint Rewrite close_exp_wrt_exp_def : close_exp_wrt_exp_rec.
-
+  close_exp_wrt_exp x1 (abs e2) := 
+    abs (close_exp_wrt_exp x1 e2);
+  close_exp_wrt_exp x1 (app e2 e3) := 
+    app (close_exp_wrt_exp x1 e2) (close_exp_wrt_exp x1 e3).
 
 (***********************************************************************)
 (** * Substitution *)
@@ -182,26 +163,11 @@ Hint Rewrite close_exp_wrt_exp_def : close_exp_wrt_exp_rec.
 
  *)
 
-Equations subst_exp_rec {n} (u:exp n) (y:var) (e:exp n) : exp n :=
-  subst_exp_rec u y (var_b m)   := var_b m;
-  subst_exp_rec u y (var_f x)   := if x == y then u else var_f x;
-  subst_exp_rec u y (abs e1)    :=  abs (subst_exp_rec (weaken_exp u) y e1);
-  subst_exp_rec u y (app e1 e2) := app (subst_exp_rec u y e1) (subst_exp_rec u y e2).
-
-
-Equations subst_exp (u : exp 0) (y :var) (e:exp 0) : exp 0 := 
-  subst_exp u y e := subst_exp_rec u y e.
-
-(*
-Lemma subst_exp_var_f : forall u y x, 
-    subst_exp u y (var_f x) = if x == y then u else var_f x.
-Proof. intros. program_simpl. Qed.
-Hint Rewrite subst_exp_var_f : subst_exp.
-Lemma subst_exp_app : forall u y e1 e2, 
-    subst_exp u y (app e1 e2) = app (subst_exp u y e1) (subst_exp u y e2).
-Proof. intros. program_simpl. Qed.
-Hint Rewrite subst_exp_app : subst_exp.
-*)
+Equations subst_exp_wrt_exp {n} (u:exp n) (y:var) (e:exp n) : exp n :=
+  subst_exp_wrt_exp u y (var_b m)   := var_b m;
+  subst_exp_wrt_exp u y (var_f x)   := if x == y then u else var_f x;
+  subst_exp_wrt_exp u y (abs e1)    := abs (subst_exp_wrt_exp (weaken_exp u) y e1);
+  subst_exp_wrt_exp u y (app e1 e2) := app (subst_exp_wrt_exp u y e1) (subst_exp_wrt_exp u y e2).
 
 (***********************************************************************)
 (** * Free variables *)
@@ -254,19 +220,16 @@ end.
     shift indices in [u] when passing under a binder. *)
 
 
-Equations open_exp_wrt_exp_rec {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
-  open_exp_wrt_exp_rec u (var_b m) :=
+Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
+  open_exp_wrt_exp u (var_b m) :=
      match decrease_fin k m with
         | Some f => var_b f
         | None => u
       end;
-  open_exp_wrt_exp_rec u (var_f x)   := var_f x;
-  open_exp_wrt_exp_rec u (abs e)     := abs (open_exp_wrt_exp_rec (weaken_exp u) e);
-  open_exp_wrt_exp_rec u (app e1 e2) := app (open_exp_wrt_exp_rec u e1) (open_exp_wrt_exp_rec u e2).
+  open_exp_wrt_exp u (var_f x)   := var_f x;
+  open_exp_wrt_exp u (abs e)     := abs (open_exp_wrt_exp (weaken_exp u) e);
+  open_exp_wrt_exp u (app e1 e2) := app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
 
-(* Extraction open_exp_wrt_exp_rec. *)
-
-Definition open_exp_wrt_exp (e : exp 1) (u : exp 0) : exp 0 := open_exp_wrt_exp_rec u e.
 
 (***********************************************************************)
 (** * Class + rewrite theory ??? *)
@@ -275,43 +238,139 @@ Definition open_exp_wrt_exp (e : exp 1) (u : exp 0) : exp 0 := open_exp_wrt_exp_
 (* new! *)
 
 Ltac simp_stlc := repeat first [ 
-                       unfold open_exp_wrt_exp 
-                     || unfold close_exp_wrt_exp 
-                     || simp subst_exp
-                     || simp open_exp_wrt_exp_rec 
-                     || simp close_exp_wrt_exp_rec
-                     || simp subst_exp_rec 
-                     || simpl size_exp
+                       simp subst_exp_wrt_exp
+                     || simp open_exp_wrt_exp
+                     || simp close_exp_wrt_exp
                      || simp weaken_exp
+                     || simpl size_exp
                      || simpl fv_exp
                      || simp increase_fin 
                      || simp decrease_fin
                      ].
 
+(* single parameter for now *)
 
 Class Syntax ( e : nat -> Set ) := {
-    fv : e 0 -> vars ;
-    size : e 0 -> nat ;
-    weaken : forall n, e n -> e (S n) ;
-    close : var -> e 0 -> e 1 ;
-  }.
+   (* To state the subst_intro lemma generically, we need to know 
+      the var constructor of the datatype. *)
+    evar  : forall {n}, var -> e n ;
 
-Class Subst (e : nat -> Set) (u : Set) := {
-    open  : e 1 -> u -> e 0 ;
-    subst : u -> var -> e 0 -> e 0 
+    fv : forall {n}, e n -> vars ;
+    size : forall {n}, e n -> nat ;
+    weaken : forall {n}, e n -> e (S n) ;
+    close : forall {n}, atom -> e n -> e (S n) ;
+    open  : forall {n},  e n -> e (S n) -> e n ;
+    subst : forall {n}, e n -> atom -> e n -> e n
 }.
 
-Instance Syntax_exp : Syntax exp := 
-  { fv := fv_exp ; size := size_exp ; weaken := fun n => @weaken_exp n ; close := close_exp_wrt_exp }.
-Instance Subst_exp_exp : Subst exp (exp 0) := 
-  { open := open_exp_wrt_exp ; subst := subst_exp }.
+Instance Syntax_exp : Syntax exp := { 
+    evar := fun n => @var_f n;
 
-(*
-Lemma open_var_f : forall {x:atom}{u : exp 0}, open (var_f x) u = var_f x.
-Proof. intros. program_simpl. Qed. 
-Lemma open_app : forall {x:atom}{e1 e2}{u : exp 0}, open (app e1 e2) u = app (open e1 u) (open e2 u).
-Proof. intros. program_simpl. Qed. 
-*)
+    fv := fun n => @fv_exp n;
+    size := fun {n} => @size_exp n; 
+    weaken := fun {n} =>  @weaken_exp n;
+    close := fun {n} => @close_exp_wrt_exp n;
+    open := fun {n} => @open_exp_wrt_exp n;
+    subst := fun {n} => @subst_exp_wrt_exp n}.
+Opaque Syntax_exp.
+
+Example test : forall (e : exp 0), size e = 1.
+intros e.
+simpl. (* not sufficient *)
+cbn. (* not sufficent *)
+program_simpl.
+simp size_exp.
+Abort.
+
+Lemma fv_exp_var_b : forall n (m: fin n), fv (var_b m) = {}. 
+Proof. reflexivity. Qed.
+Lemma fv_exp_var_f : forall n (x:atom), fv (evar (n:=n) x) = {{x}}.
+Proof. reflexivity. Qed.
+Lemma fv_exp_abs : forall n (e: exp (S n)), fv (abs e) = fv e.
+Proof. reflexivity. Qed.
+Lemma fv_exp_app : forall n (e1 : exp n) (e2: exp n), fv (app e1 e2) = fv e1 `union` fv e2.
+Proof. reflexivity. Qed.
+
+Create HintDb fv.
+Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
+
+(* Re-define behavior of size in terms of size_exp *)
+Lemma size_exp_var_b : forall n (m: fin n), size (var_b m) = 1. 
+Proof. reflexivity. Qed.
+Lemma size_exp_var_f : forall n (x:atom), size (evar (n:=n) x) = 1.
+Proof. reflexivity. Qed.
+Lemma size_exp_abs : forall n (e: exp (S n)), size (abs e) = 1 + (size e).
+Proof. reflexivity. Qed.
+Lemma size_exp_app : forall n (e1 : exp n) (e2: exp n), size (app e1 e2) = 1 + size e1 + size e2.
+Proof. reflexivity. Qed.
+
+Create HintDb size.
+Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
+
+Lemma weaken_exp_var_b : forall n (m: fin n),   weaken  (var_b m) = var_b (increase_fin m).
+Proof. reflexivity. Qed.
+Lemma weaken_exp_var_f : forall n (x:atom), weaken (evar (n:=n) x) = evar x.
+Proof. reflexivity. Qed.
+Lemma weaken_exp_abs : forall n (e: exp (S n)), weaken (abs e) = abs (weaken e).
+Proof. reflexivity. Qed.
+Lemma weaken_exp_app : forall n (e1 : exp n) (e2: exp n), weaken (app e1 e2) = app (weaken e1) (weaken e2).
+Proof. reflexivity. Qed.
+
+Create HintDb weaken.
+Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
+
+Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), open u (var_b m) = 
+match decrease_fin n m with
+        | Some f => var_b f
+        | None => u
+      end.
+Proof. reflexivity. Qed.
+Lemma open_exp_var_f : forall n (u:exp n) (x:atom), open u (evar (n:= S n) x) = evar x.
+Proof. reflexivity. Qed.
+
+Lemma open_exp_abs : forall n (u:exp n) (e: exp (S (S n))), 
+    open u (abs e) = abs (open (weaken u) e).
+Proof. reflexivity. Qed. 
+Lemma open_exp_app : forall n (u:exp n) (e1 : exp (S n)) (e2: exp (S n)), 
+    open u (app e1 e2) = app (open u e1) (open u e2).
+Proof. reflexivity. Qed.
+
+Create HintDb open.
+Hint Rewrite open_exp_var_b open_exp_var_f open_exp_abs open_exp_app : open.
+
+Lemma subst_exp_var_b : forall n (u:exp n) (y:atom) (m: fin n), 
+    subst u y (var_b m) = var_b m.
+Proof. reflexivity. Qed.
+Lemma subst_exp_var_f : forall n (u:exp n) (y:atom) (x:atom), 
+    subst u y (evar (n:=n) x) = if x == y then u else evar x.
+Proof. reflexivity. Qed.
+Lemma subst_exp_abs : forall n (u:exp n) (y:atom) (e: exp (S n)), 
+    subst u y (abs e) = abs (subst (weaken u) y e).
+Proof. reflexivity. Qed.
+Lemma subst_exp_app : forall n (u:exp n) (y:atom) (e1 : exp n) (e2: exp n), 
+    subst u y (app e1 e2) = app (subst u y e1) (subst u y e2).
+Proof. reflexivity. Qed.
+
+Create HintDb subst.
+Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
+
+
+Class SyntaxTheory (ex : nat -> Set ) `{H: Syntax ex } := {
+   size_weaken : forall n (t : ex n), size (weaken t) = size t;
+   fv_weaken : forall n1 (e1 : ex n1), fv (weaken e1) = fv e1;
+   size_min : forall n (e : ex n), 1 <= size e;
+
+   subst_intro  : forall n (e1 : ex (S n)) (x1:atom) (e2 : ex n),
+      x1 `notin` fv e1 ->
+      open e2 e1 = subst e2 x1 (open (evar x1) e1) ;
+
+   subst_open_var : forall n1 (e2 : exp (S n1)) e1 x1 x2,
+        x1 <> x2 ->
+        open (evar x2) (subst (weaken e1) x1 e2) = 
+          subst e1 x1 (open (evar x2) e2)
+   }.
+
+
 
 (***********************************************************************)
 (** * Notations *)
@@ -328,40 +387,11 @@ Proof. intros. program_simpl. Qed.
 
 Declare Scope exp_scope.
 Module StlcNotations.
-Notation "[ z ~> u ] e" := (subst_exp_rec u z e) (at level 0) : exp_scope.
-Notation "e ^ x"        := (open_exp_wrt_exp e (var_f x)) : exp_scope.
+Notation "[ z ~> u ] e" := (subst u z e) (at level 0) : exp_scope.
+Notation "e ^ x"        := (open (evar x) e) : exp_scope.
 End StlcNotations.
 Import StlcNotations.
 Open Scope exp_scope.
-
-(***********************************************************************)
-(** * Local closure *)
-(***********************************************************************)
-
-(** Recall that [exp] admits terms that contain unbound indices.  We say
-    that a term is locally closed when no indices appearing in it are
-    unbound.  The proposition [lc_exp e] holds when an expression [e] is
-    locally closed.
-
-    The inductive definition below formalizes local closure such that the
-    resulting induction principle serves as the structural induction
-    principle over (locally closed) expressions.  In particular, unlike
-    induction for type [exp], there are no cases for bound variables.
-    Thus, the induction principle corresponds more closely to informal
-    practice than the one arising from the definition of pre-terms.  *)
-
-(*
-Inductive lc_exp : exp -> Prop :=
- | lc_var_f : forall (x:var),
-     lc_exp (var_f x)
- | lc_abs : forall (e:exp),
-      (forall x , lc_exp (open e (var_f x)))  ->
-     lc_exp (abs e)
- | lc_app : forall (e1 e2:exp),
-     lc_exp e1 ->
-     lc_exp e2 ->
-     lc_exp (app e1 e2).
-*)
 
 (***********************************************************************)
 (** * Typing contexts *)
@@ -404,7 +434,7 @@ Definition ctx : Set := list (atom * typ).
 *)
 
 Inductive typing : ctx -> exp 0 -> typ -> Prop :=
- | typing_var : forall (G:ctx) (x:var) (T:typ),
+ | typing_var : forall (G:ctx) (x:atom) (T:typ),
      uniq G ->
      binds x T G  ->
      typing G (var_f x) T
@@ -438,10 +468,11 @@ Definition is_value (e : exp 0) : Prop :=
 
 Inductive step : exp 0 -> exp 0 -> Prop :=
  | step_beta : forall (e1:exp 1)(e2:exp 0),
-     step (app  (abs e1) e2)  (open e1 e2)
+     step (app (abs e1) e2) (open e2 e1)
  | step_app : forall (e1 e2 e1':exp 0),
      step e1 e1' ->
      step (app e1 e2) (app e1' e2).
+
 
 #[global]
 Hint Constructors typing step : core.
