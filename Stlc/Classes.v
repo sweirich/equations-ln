@@ -13,8 +13,6 @@ Class Syntax (e : nat -> Set) := {
       (And use this overloaded term consistently through the 
       definitions of the language.)
     *)
-    evar  : forall {n}, var -> e n ;
-
     fv : forall {n}, e n -> vars ;
     size : forall {n}, e n -> nat ;
     weaken : forall {n}, e n -> e (S n) ;
@@ -31,7 +29,7 @@ Class Syntax (e : nat -> Set) := {
    perhaps automatically proven by a future version of LNgen. *)
    
 
-Class SyntaxTheory (exp : nat -> Set ) `{H: Syntax exp } := {
+Class SyntaxTheory (exp : nat -> Set) (evar : forall {n}, atom -> exp n) `{H: Syntax exp } := {
 
    size_weaken : forall n (t : exp n), size (weaken t) = size t;
 
@@ -79,6 +77,18 @@ Class SyntaxTheory (exp : nat -> Set ) `{H: Syntax exp } := {
 
 (* TODO: rewriting/hint database for the above lemmas. *)
 
+
+Create HintDb syntax.
+
+Hint Rewrite (fun {e} {v} `{K:SyntaxTheory e v} => @close_open e v _ _) 
+  using solve [auto; try typeclasses eauto] : syntax.
+
+Hint Rewrite (fun {e} {v} `{K:SyntaxTheory e v} => @open_close e v _ _) 
+  using solve [auto; try typeclasses eauto] : syntax.
+
+Hint Rewrite (fun {e} {v} `{K:SyntaxTheory e v} => @subst_open_var e v _ _) 
+  using solve [auto; try typeclasses eauto] : syntax.
+
 (***********************************************************************)
 (** * Rewriting / tactics *)
 (***********************************************************************)
@@ -117,7 +127,7 @@ Ltac simp_syntax := repeat first [
 Declare Scope syntax_scope.
 Module SyntaxNotations.
 Notation "[ z ~> u ] e" := (subst u z e) (at level 0) : syntax_scope.
-Notation "e ^ x"        := (open (evar x) e) : syntax_scope.
+Notation "e ^ x"        := (open x e) : syntax_scope.
 End SyntaxNotations.
 
 

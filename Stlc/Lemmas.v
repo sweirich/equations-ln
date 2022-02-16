@@ -93,7 +93,7 @@ Hint Rewrite fv_exp_weaken_exp : weaken_exp.
 (** * Theorems about [size] *)
 
 Lemma size_exp_min :
-(forall n (e1 : exp n), (1 <= size e1)%nat).
+(forall n (e1 : exp n), (1 <= size_exp e1)%nat).
 Proof.
   intros n e1.  dependent induction e1; default_simp.
 Qed.
@@ -525,8 +525,8 @@ Hint Rewrite subst_exp_wrt_exp_intro using solve [auto] : lngen.
 Ltac default_auto ::= auto; tauto.
 Ltac default_autorewrite ::= fail.
 
-
-Instance STE :  SyntaxTheory exp := {
+#[global]
+Instance STE :  SyntaxTheory exp (@var_f) := {
   size_weaken := size_exp_weaken_exp;
   fv_weaken := fv_exp_weaken_exp;
   size_min  := size_exp_min;
@@ -542,4 +542,5 @@ Instance STE :  SyntaxTheory exp := {
 }.
 (* TODO: fill in the rest *)
 
+#[global]
 Opaque Syntax_exp.

@@ -259,16 +259,15 @@ Ltac simp_stlc := repeat first [
 
 (* single parameter for now *)
 
-
+#[global]
 Instance Syntax_exp : Syntax exp := { 
-    evar := fun n => @var_f n;
-
-    fv := fun n => @fv_exp n;
+    fv := fun {n} => @fv_exp n;
     size := fun {n} => @size_exp n; 
     weaken := fun {n} =>  @weaken_exp n;
     close := fun {n} => @close_exp_wrt_exp n;
     open := fun {n} => @open_exp_wrt_exp n;
     subst := fun {n} => @subst_exp_wrt_exp n}.
+#[global]
 Opaque Syntax_exp.
 
 Example test : forall (e : exp 0), size e = 1.
@@ -281,7 +280,7 @@ Abort.
 
 Lemma fv_exp_var_b : forall n (m: fin n), fv (var_b m) = {}. 
 Proof. reflexivity. Qed.
-Lemma fv_exp_var_f : forall n (x:atom), fv (evar (n:=n) x) = {{x}}.
+Lemma fv_exp_var_f : forall n (x:atom), fv (var_f (n:=n) x) = {{x}}.
 Proof. reflexivity. Qed.
 Lemma fv_exp_abs : forall n (e: exp (S n)), fv (abs e) = fv e.
 Proof. reflexivity. Qed.
@@ -293,7 +292,7 @@ Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
 (* Re-define behavior of size in terms of size_exp *)
 Lemma size_exp_var_b : forall n (m: fin n), size (var_b m) = 1. 
 Proof. reflexivity. Qed.
-Lemma size_exp_var_f : forall n (x:atom), size (evar (n:=n) x) = 1.
+Lemma size_exp_var_f : forall n (x:atom), size (var_f (n:=n) x) = 1.
 Proof. reflexivity. Qed.
 Lemma size_exp_abs : forall n (e: exp (S n)), size (abs e) = 1 + (size e).
 Proof. reflexivity. Qed.
@@ -304,7 +303,7 @@ Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
 
 Lemma weaken_exp_var_b : forall n (m: fin n),   weaken  (var_b m) = var_b (increase_fin m).
 Proof. reflexivity. Qed.
-Lemma weaken_exp_var_f : forall n (x:atom), weaken (evar (n:=n) x) = evar x.
+Lemma weaken_exp_var_f : forall n (x:atom), weaken (var_f (n:=n) x) = var_f x.
 Proof. reflexivity. Qed.
 Lemma weaken_exp_abs : forall n (e: exp (S n)), weaken (abs e) = abs (weaken e).
 Proof. reflexivity. Qed.
@@ -319,7 +318,7 @@ match decrease_fin n m with
         | None => u
       end.
 Proof. reflexivity. Qed.
-Lemma open_exp_var_f : forall n (u:exp n) (x:atom), open u (evar (n:= S n) x) = evar x.
+Lemma open_exp_var_f : forall n (u:exp n) (x:atom), open u (var_f (n:= S n) x) = var_f x.
 Proof. reflexivity. Qed.
 
 Lemma open_exp_abs : forall n (u:exp n) (e: exp (S (S n))), 
@@ -335,7 +334,7 @@ Lemma subst_exp_var_b : forall n (u:exp n) (y:atom) (m: fin n),
     subst u y (var_b m) = var_b m.
 Proof. reflexivity. Qed.
 Lemma subst_exp_var_f : forall n (u:exp n) (y:atom) (x:atom), 
-    subst u y (evar (n:=n) x) = if x == y then u else evar x.
+    subst u y (var_f (n:=n) x) = if x == y then u else var_f x.
 Proof. reflexivity. Qed.
 Lemma subst_exp_abs : forall n (u:exp n) (y:atom) (e: exp (S n)), 
     subst u y (abs e) = abs (subst (weaken u) y e).
@@ -395,15 +394,16 @@ Inductive typing : ctx -> exp 0 -> typ -> Prop :=
  | typing_var : forall (G:ctx) (x:atom) (T:typ),
      uniq G ->
      binds x T G  ->
-     typing G (evar x) T
+     typing G (var_f x) T
  | typing_abs : forall (L:vars) (G:ctx) (T1:typ) (e:exp 1) (T2:typ),
-     (forall x , x `notin` L -> typing ([(x,T1)] ++ G) (e ^ x) T2)  ->
+     (forall x , x `notin` L -> typing ([(x,T1)] ++ G) (e ^ var_f x) T2)  ->
      typing G (abs e) (typ_arrow T1 T2)
  | typing_app : forall (G:ctx) (e1 e2:exp 0) (T2 T1:typ),
      typing G e1 (typ_arrow T1 T2) ->
      typing G e2 T1 ->
      typing G (app e1 e2) T2 .
 
+Derive Signature for typing.
 
 (***********************************************************************)
 (** * Values and Small-step Evaluation *)
@@ -431,6 +431,7 @@ Inductive step : exp 0 -> exp 0 -> Prop :=
      step e1 e1' ->
      step (app e1 e2) (app e1' e2).
 
+Derive Signature for step.
 
 #[global]
 Hint Constructors typing step : core.

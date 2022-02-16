@@ -162,13 +162,13 @@ Inductive typing_e : ctx -> exp 0 -> typ -> Prop :=
       typing_e E (var_f x) T
   | typing_e_abs : forall x E e T1 T2,
       x `notin` dom E \u fv_exp e ->
-      typing_e ([(x, T1)] ++ E) (e ^ x) T2 ->
+      typing_e ([(x, T1)] ++ E) (e ^ var_f x) T2 ->
       typing_e E (abs e) (typ_arrow T1 T2)
   | typing_e_app : forall E e1 e2 T1 T2,
       typing_e E e1 (typ_arrow T1 T2) ->
       typing_e E e2 T1 ->
       typing_e E (app e1 e2) T2.
-Hint Constructors typing_e.
+#[local] Hint Constructors typing_e : core.
 
 
 (*************************************************************************)
@@ -426,7 +426,7 @@ Lemma typing_subst_var_case : forall (E F : ctx) u S T (z x : atom),
   binds x T (F ++ [(z,S)] ++ E) ->
   uniq (F ++ [(z,S)] ++ E) ->
   typing E u S ->
-  typing (F ++ E) ([z ~> u] (evar x)) T.
+  typing (F ++ E) ([z ~> u] (var_f x)) T.
 Proof.
   intros E F u S T z x H J K.
   simp subst.
@@ -452,7 +452,7 @@ Qed.
 
           -- apply the [typing_abs] constructor.
 
-          -- In order to use the induction hypothesis, use [subst_var]
+          -- In order to use the induction hypothesis, use [subst_open_var]
              to push the substitution under the opening operation.
 
           -- Recall the lemma [typing_to_lc_exp] and the [rewrite_env]
@@ -472,7 +472,7 @@ Proof.
   - eapply typing_subst_var_case; eauto.
   - simp subst.
     pick fresh x and apply typing_abs.
-    rewrite subst_open_var; auto.
+    simp syntax. (* subst_open_var *)
     rewrite_env (((x ~ T1)++F)++E).
     eapply H0; eauto.
     auto.
@@ -545,10 +545,6 @@ Proof.
 
   *)
 
-Ltac inj_pair2 := repeat match goal with 
-          | [ H : existT _ _ _ = existT _ _ _  |- _ ] => apply inj_pair2 in H end;
-          subst.
-
 Lemma preservation : forall (E : ctx) e e' T,
   typing E e T ->
   step e e' ->
@@ -556,13 +552,16 @@ Lemma preservation : forall (E : ctx) e e' T,
 Proof.
   intros E e e' T H.
   generalize e'.
-  dependent induction H; intros e0' S; inversion S; subst; inj_pair2.
-  - inversion H; subst; inj_pair2.
+  dependent induction H; intros e0' S; depelim S; subst.
+  - depelim H. inversion H0. subst.
     pick fresh x for (L \u fv e0).
     rewrite (subst_intro _ _ x); auto.
     eapply typing_subst_simple; auto.
   - eauto.
 Qed.
+
+(* NOTE: instead of inversion for step derivation, need to use depelim. Otherwise get 
+ existT equalities that need to be resolved via inj_pair2. *)
 
 (*************************************************************************)
 (** ** Progress *)
@@ -629,7 +628,7 @@ Proof.
   + left. simpl. auto.
   + destruct IHtyping1; auto.
      ++ depelim e1; simpl in H2; try done; clear H2.
-        inversion H. inj_pair2.
+        depelim H. inversion H2. subst. clear H2.
         right.
         exists (open e2 e1).
         eauto.
@@ -638,8 +637,6 @@ Proof.
         exists (app e1' e2).
          eauto.
 Qed.
-
-(* NOTE: depelim e1 needs to produce a case with "evar" not "var_f"... *)
 
 (*************************************************************************)
 (** * Tactic support *)
@@ -720,8 +717,8 @@ Qed.
 Lemma typing_rename : forall (x y : atom) E e T1 T2,
   x `notin` fv e ->
   y `notin` dom E ->
-  typing ([(x, T1)] ++ E) (e ^ x) T2 ->
-  typing ([(y, T1)] ++ E) (e ^ y) T2.
+  typing ([(x, T1)] ++ E) (e ^ var_f x) T2 ->
+  typing ([(y, T1)] ++ E) (e ^ var_f y) T2.
 Proof.
   intros x y E e T1 T2 Fr1 Fr2 H.
   destruct (x == y).
@@ -754,7 +751,7 @@ Qed.
 
 Lemma typing_abs_exists : forall E e T1 T2 (x : atom),
       x `notin` dom E \u fv e ->
-      typing ([(x,T1)] ++ E) (e ^ x) T2 ->
+      typing ([(x,T1)] ++ E) (e ^ var_f x) T2 ->
       typing E (abs e) (typ_arrow T1 T2).
 Proof.
   intros.

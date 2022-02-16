@@ -45,4 +45,11 @@ QUESTIONS
 
 - Should we use ssreflect? especially for reasoning about equality of atoms in metalib?
 
-- 
+- Is it possible to always hide the "var_f" constructor? Need alternatives for 
+    * case analysis on exp type
+    * induction on exp type
+
+- Can we come up with a (confluent) rewriting theory for the infrastructure lemmas?
+  cf. explicit substitutions
+  
+  
