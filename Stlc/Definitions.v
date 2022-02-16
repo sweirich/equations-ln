@@ -63,6 +63,14 @@ Inductive exp : nat ->  Set :=  (*r expressions *)
 (* Cargo culting equations *)
 Derive Signature NoConfusion NoConfusionHom for exp.
 
+Ltac noconf_exp := 
+  match goal with 
+    | [ H : var_b _ = var_b _ |- _ ] => noconf H
+    | [ H : var_f _ = var_f _ |- _ ] => noconf H
+    | [ H : abs _ = abs _ |- _ ] => noconf H
+    | [ H : app _ _ = app _ _ |- _ ] => noconf H
+  end.
+
 (* Decidable equality for expressions *)
 Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
  exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
@@ -387,7 +395,7 @@ Inductive typing : ctx -> exp 0 -> typ -> Prop :=
  | typing_var : forall (G:ctx) (x:atom) (T:typ),
      uniq G ->
      binds x T G  ->
-     typing G (var_f x) T
+     typing G (evar x) T
  | typing_abs : forall (L:vars) (G:ctx) (T1:typ) (e:exp 1) (T2:typ),
      (forall x , x `notin` L -> typing ([(x,T1)] ++ G) (e ^ x) T2)  ->
      typing G (abs e) (typ_arrow T1 T2)

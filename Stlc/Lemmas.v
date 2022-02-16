@@ -93,12 +93,10 @@ Hint Rewrite fv_exp_weaken_exp : weaken_exp.
 (** * Theorems about [size] *)
 
 Lemma size_exp_min :
-(forall n (e1 : exp n), 1 <= size e1).
+(forall n (e1 : exp n), (1 <= size e1)%nat).
 Proof.
   intros n e1.  dependent induction e1; default_simp.
-  all: simp size.
-
-Admitted. (* lia ??? *)
+Qed.
 
 #[global] Hint Resolve size_exp_min : lngen.
 
@@ -114,11 +112,11 @@ Qed.
 
 Lemma size_exp_open_exp_wrt_exp :
 (forall k (e1 : exp (S k)) (e2 : exp k),
-  size_exp e1 <= size_exp (open_exp_wrt_exp e2 e1)).
+  ((size_exp e1 <= size_exp (open_exp_wrt_exp e2 e1))%nat)).
 Proof.
 intros k e1 e2.
 funelim (open_exp_wrt_exp e2 e1); default_simp; try lia; eauto with lngen.
-Admitted.
+Qed.
 
 Lemma size_exp_open_exp_wrt_exp_var :
 (forall k (e : exp (S k)) x,
@@ -136,14 +134,6 @@ Hint Rewrite size_exp_open_exp_wrt_exp_var using solve [auto] : lngen.
 
 Ltac default_auto ::= auto with lngen brute_force; tauto.
 Ltac default_autorewrite ::= simp_stlc.
-
-Ltac noconf_exp := 
-  match goal with 
-    | [ H : var_b _ = var_b _ |- _ ] => noconf H
-    | [ H : var_f _ = var_f _ |- _ ] => noconf H
-    | [ H : abs _ = abs _ |- _ ] => noconf H
-    | [ H : app _ _ = app _ _ |- _ ] => noconf H
-  end.
 
 Lemma close_exp_wrt_exp_inj :
 (forall k (e1 : exp k) e2 x1,
@@ -540,6 +530,13 @@ Instance STE :  SyntaxTheory exp := {
   size_weaken := size_exp_weaken_exp;
   fv_weaken := fv_exp_weaken_exp;
   size_min  := size_exp_min;
+  size_close := size_exp_close_exp_wrt_exp;
+  size_open := size_exp_open_exp_wrt_exp;
+  size_open_var := size_exp_open_exp_wrt_exp_var;
+  close_inj := close_exp_wrt_exp_inj;
+  close_open := close_exp_wrt_exp_open_exp_wrt_exp;
+  open_close := open_exp_wrt_exp_close_exp_wrt_exp;
+  open_inj := open_exp_wrt_exp_inj;
   subst_intro := subst_exp_wrt_exp_intro;
   subst_open_var := subst_exp_open_exp_wrt_exp_var 
 }.

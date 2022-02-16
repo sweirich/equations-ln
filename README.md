@@ -39,7 +39,10 @@ CONTENTS
 
 QUESTIONS
 
+- Should "open" and "subst" call weaken u with every recursion under a binder? Or should 
+  it be one call where u actually appears.
+  (i.e. should u have type exp n or exp 0?)
 
 - Should we use ssreflect? especially for reasoning about equality of atoms in metalib?
 
-- Why does lia not work in some of the proofs in Lemmas.v
+- 

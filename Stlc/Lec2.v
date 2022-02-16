@@ -13,9 +13,12 @@ Close Scope program_scope.
 From Equations Require Import Equations.
 
 Require Import Metalib.Metatheory.
+Require Import Stlc.Classes.
 Require Import Stlc.Fin.
 Require Import Stlc.Definitions.
-Import StlcNotations.
+Opaque Syntax_exp.
+
+Import SyntaxNotations.
 Require Import Stlc.Lemmas.
 
 (*************************************************************************)
@@ -221,9 +224,10 @@ Proof.
   induction H.
   Case "typing_var".
     (* The G0 looks strange in the [typing_var] case. *)
-  Focus 2.
+2: {
   Case "typing_abs".
     (* The [typing_abs] case still does not have a strong enough IH. *)
+  admit. } 
 Abort.
 
 (** The hypotheses in the [typing_var] case include a context
@@ -345,10 +349,11 @@ Proof.
   - eapply typing_var; eauto.
   - eapply typing_abs with (L := dom (G0 ++ F ++ E) \u L).
     intros x Fr.
-    admit.
+    rewrite_env ((x ~ T1 ++ G0) ++ F ++ E).
+    eapply H0; auto.
+    solve_uniq.
   - eauto.
- (* FILL IN HERE *)
- Admitted.
+Qed.
 
 
 (** *** Demo [typing_weakening]
@@ -416,19 +421,22 @@ Qed.
 
   *)
 
+
 Lemma typing_subst_var_case : forall (E F : ctx) u S T (z x : atom),
   binds x T (F ++ [(z,S)] ++ E) ->
   uniq (F ++ [(z,S)] ++ E) ->
   typing E u S ->
-  typing (F ++ E) ([z ~> u] (var_f x)) T.
+  typing (F ++ E) ([z ~> u] (evar x)) T.
 Proof.
   intros E F u S T z x H J K.
-  simp_stlc.
-  destruct (x == z); simpl. subst.
- (* FILL IN HERE *) Admitted.
-
-
-
+  simp subst.
+  destruct (x == z); simpl. 
+  + subst. 
+    assert (T = S). eapply binds_mid_eq; eauto.
+    subst.
+    eapply typing_weakening; eauto.
+  + eapply typing_var; eauto.
+Qed.
 
 (** *** Exercise [typing_subst]
 
@@ -470,7 +478,7 @@ Proof.
     auto.
   - simp subst.
     eauto.
-(* FILL IN HERE *) Admitted.
+Qed.
 
 (** *** Exercise [typing_subst_simpl]
 
@@ -537,6 +545,10 @@ Proof.
 
   *)
 
+Ltac inj_pair2 := repeat match goal with 
+          | [ H : existT _ _ _ = existT _ _ _  |- _ ] => apply inj_pair2 in H end;
+          subst.
+
 Lemma preservation : forall (E : ctx) e e' T,
   typing E e T ->
   step e e' ->
@@ -544,19 +556,12 @@ Lemma preservation : forall (E : ctx) e e' T,
 Proof.
   intros E e e' T H.
   generalize e'.
-  dependent induction H; intros e0' S; inversion S; subst.
-  - apply inj_pair2 in H2.
-    apply inj_pair2 in H3.
-    subst.
-    inversion H; subst.
-    apply inj_pair2 in H1. subst.
+  dependent induction H; intros e0' S; inversion S; subst; inj_pair2.
+  - inversion H; subst; inj_pair2.
     pick fresh x for (L \u fv e0).
     rewrite (subst_intro _ _ x); auto.
     eapply typing_subst_simple; auto.
-  - apply inj_pair2 in H1.
-    apply inj_pair2 in H3.
-    subst.
-    eauto.
+  - eauto.
 Qed.
 
 (*************************************************************************)
@@ -620,9 +625,21 @@ Proof.
   remember (@nil (atom * typ)) as E.
 
   induction H; subst.
+  + inversion H0. subst. inversion H5.
+  + left. simpl. auto.
+  + destruct IHtyping1; auto.
+     ++ depelim e1; simpl in H2; try done; clear H2.
+        inversion H. inj_pair2.
+        right.
+        exists (open e2 e1).
+        eauto.
+     ++ destruct H2 as [e1' h].  
+        right.
+        exists (app e1' e2).
+         eauto.
+Qed.
 
-(* FILL IN HERE *) Admitted.
-
+(* NOTE: depelim e1 needs to produce a case with "evar" not "var_f"... *)
 
 (*************************************************************************)
 (** * Tactic support *)
@@ -644,7 +661,7 @@ Ltac gather_atoms ::=
   let A := gather_atoms_with (fun x : atoms => x) in
   let B := gather_atoms_with (fun x : atom => singleton x) in
   let C := gather_atoms_with (fun x : list (var * typ) => dom x) in
-  let D := gather_atoms_with (fun n : nat => fun x : exp n => fv_exp x) in
+  let D := gather_atoms_with (fun n : nat => fun x : exp n => fv x) in
   constr:(A `union` B `union` C `union` D).
 
 (** A number of other, useful tactics are defined by the Metatheory
@@ -701,7 +718,7 @@ Qed.
    substution properties hold we can use this proof.
 *)
 Lemma typing_rename : forall (x y : atom) E e T1 T2,
-  x `notin` fv_exp e ->
+  x `notin` fv e ->
   y `notin` dom E ->
   typing ([(x, T1)] ++ E) (e ^ x) T2 ->
   typing ([(y, T1)] ++ E) (e ^ y) T2.
@@ -736,7 +753,7 @@ Qed.
     version. *)
 
 Lemma typing_abs_exists : forall E e T1 T2 (x : atom),
-      x `notin` dom E \u fv_exp e ->
+      x `notin` dom E \u fv e ->
       typing ([(x,T1)] ++ E) (e ^ x) T2 ->
       typing E (abs e) (typ_arrow T1 T2).
 Proof.
@@ -770,6 +787,12 @@ Proof. (* FILL IN HERE *) Admitted.
 
  *)
 Lemma fv_in_dom : forall G e T,
-    typing G e T -> fv_exp e [<=] dom G.
+    typing G e T -> fv e [<=] dom G.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros G e T H.
+  dependent induction H; simp fv.
+  - eapply binds_In in H0. fsetdec.
+  - pick fresh x.
+    specialize (H0 x ltac:(eauto)).
+(* Need fv_open lemma in theory class. *)
+Admitted.

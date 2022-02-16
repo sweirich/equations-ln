@@ -9,7 +9,7 @@ From Equations Require Import Equations.
 Class Syntax (e : nat -> Set) := {
    (* 
       To state the lemmas generically, we need to know 
-      the var constructor of the datatype.
+      the free variable constructor of the datatype.
       (And use this overloaded term consistently through the 
       definitions of the language.)
     *)
@@ -59,7 +59,7 @@ Class SyntaxTheory (exp : nat -> Set ) `{H: Syntax exp } := {
    open_close : (forall n1 (e1 : exp n1) x1,
       open (evar x1) (close x1 e1) = e1);
 
-   open_exp_wrt_exp_inj : (forall n1 (e2 e1:exp (S n1)) x1,
+   open_inj : (forall n1 (e2 e1:exp (S n1)) x1,
       x1 `notin` fv e2 ->
       x1 `notin` fv e1 ->
       open (evar x1) e2 = open (evar x1) e1 ->
