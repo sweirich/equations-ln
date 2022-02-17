@@ -265,18 +265,16 @@ Instance Syntax_exp : Syntax exp := {
     size := fun {n} => @size_exp n; 
     weaken := fun {n} =>  @weaken_exp n;
     close := fun {n} => @close_exp_wrt_exp n;
-    open := fun {n} => @open_exp_wrt_exp n;
-    subst := fun {n} => @subst_exp_wrt_exp n}.
-#[global]
-Opaque Syntax_exp.
+}.
 
-Example test : forall (e : exp 0), size e = 1.
-intros e.
-simpl. (* not sufficient *)
-cbn. (* not sufficent *)
-program_simpl.
-simp size_exp.
-Abort.
+#[global] Opaque Syntax_exp.
+
+#[global] Instance Subst_exp : Subst exp exp := {
+    open := fun {n} => @open_exp_wrt_exp n;
+    subst := fun {n} => @subst_exp_wrt_exp n
+}.
+
+#[global] Opaque Subst_exp.
 
 Lemma fv_exp_var_b : forall n (m: fin n), fv (var_b m) = {}. 
 Proof. reflexivity. Qed.
@@ -312,11 +310,21 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
 
-Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), open u (var_b m) = 
-match decrease_fin n m with
-        | Some f => var_b f
-        | None => u
-      end.
+Lemma close_exp_var_b : forall n x (m: fin n),   close x (var_b m) = var_b (increase_fin m).
+Proof. reflexivity. Qed.
+Lemma close_exp_var_f : forall n (x1 x2:atom), close x1 (var_f (n:=n) x2) = if (x1 == x2) then (var_b (gof n)) else (var_f x2).
+Proof. reflexivity. Qed.
+Lemma close_exp_abs : forall n (e: exp (S n)) x1, close x1 (abs e) = abs (close x1 e).
+Proof. reflexivity. Qed.
+Lemma close_exp_app : forall n (e1 : exp n) (e2: exp n) x1, close x1 (app e1 e2) = app (close x1 e1) (close x1 e2).
+Proof. reflexivity. Qed.
+
+Hint Rewrite close_exp_var_b close_exp_var_f close_exp_abs close_exp_app : close.
+
+Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), open u (var_b m) = match decrease_fin n m with
+                                                                        | Some f => var_b f
+                                                                        | None => u
+                                                                        end.
 Proof. reflexivity. Qed.
 Lemma open_exp_var_f : forall n (u:exp n) (x:atom), open u (var_f (n:= S n) x) = var_f x.
 Proof. reflexivity. Qed.
@@ -344,10 +352,6 @@ Lemma subst_exp_app : forall n (u:exp n) (y:atom) (e1 : exp n) (e2: exp n),
 Proof. reflexivity. Qed.
 
 Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
-
-
-
-
 
 
 (***********************************************************************)
