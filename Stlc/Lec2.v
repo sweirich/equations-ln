@@ -21,6 +21,9 @@ Opaque Syntax_exp.
 Import SyntaxNotations.
 Require Import Stlc.Lemmas.
 
+
+
+
 (*************************************************************************)
 (** * Typing contexts *)
 (*************************************************************************)
@@ -277,8 +280,6 @@ Proof.
     (* STILL STUCK! *)
 Abort.
 
-Print typing_abs.
-
 (** At this point, we are very close. However, there is still one issue. We
     cannot show that [x] is fresh for the weakened context [F].
 
@@ -432,7 +433,8 @@ Proof.
   simp subst.
   destruct (x == z); simpl. 
   + subst. 
-    assert (T = S). eapply binds_mid_eq; eauto.
+    assert (T = S). 
+    eapply binds_mid_eq; eauto.
     subst.
     eapply typing_weakening; eauto.
   + eapply typing_var; eauto.
@@ -497,7 +499,9 @@ Lemma typing_subst_simple : forall (E : ctx) e u S T (z : atom),
   typing E u S ->
   typing E ([z ~> u] e) T.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros.
+  eapply typing_subst with (F:= nil); eauto.
+Qed.
 
 (*************************************************************************)
 (** * Type soundness *)
@@ -794,5 +798,8 @@ Proof.
   - eapply binds_In in H0. fsetdec.
   - pick fresh x.
     specialize (H0 x ltac:(eauto)).
-(* Need fv_open lemma in theory class. *)
-Admitted.
+    rewrite <- fv_open_lower in H0.
+    simpl_env in H0.
+    fsetdec.
+  - fsetdec.
+Qed.

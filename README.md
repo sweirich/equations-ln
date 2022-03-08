@@ -43,14 +43,13 @@ QUESTIONS
   it be one call where u actually appears.
   (i.e. should u have type exp n or exp 0?)
 
-- Should we use ssreflect? especially for reasoning about equality of atoms in metalib?
+- Should we integrate Metalib with ssreflect?
 
-- Can we come up with a (confluent) rewriting theory for the infrastructure lemmas?
-  cf. explicit substitutions in autosubst 2.
+- Is there a (confluent) rewriting theory for the infrastructure lemmas?
   
-  Have created a hint db "syntax" for this rewriting theory.
+  Have created a hint db "syntax" for this rewriting theory. But how to use it?
 
-- Is this version any better? 
+- Is this version any better than the previous version? 
   * lc predicates are gone, but we now have "weaken" to reason about.
   * The use of dependent types places additional constraints
     (depelim/dependent induction instead of case analysis, 

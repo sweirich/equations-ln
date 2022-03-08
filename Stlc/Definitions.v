@@ -2,7 +2,7 @@
 (** * Definition of STLC *)
 (***********************************************************************)
 
-(** This file containes all of the definitions for a locally-nameless
+(** This file containes definitions for a locally-nameless
     representation of a Curry-Style simply-typed lambda calculus.
 *)
 
@@ -43,12 +43,6 @@ Inductive typ : Set :=  (*r types *)
 
 Scheme Equality for typ.
 
-(*  the line above produces the definition
-
-typ_eq_dec
-     : forall x y : typ, {x = y} + {x <> y}
-*)
-
 (* Expressions are indexed by the number of *bound variables*
    that appear in terms. *)
 
@@ -63,6 +57,7 @@ Inductive exp : nat ->  Set :=  (*r expressions *)
 (* Cargo culting equations *)
 Derive Signature NoConfusion NoConfusionHom for exp.
 
+(* like an inversion tactic for equalities *)
 Ltac noconf_exp := 
   match goal with 
     | [ H : var_b _ = var_b _ |- _ ] => noconf H
@@ -71,6 +66,8 @@ Ltac noconf_exp :=
     | [ H : app _ _ = app _ _ |- _ ] => noconf H
   end.
 
+(* We cannot derive decidable equality automatically, but 
+   we can define it. *)
 (* Decidable equality for expressions *)
 Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
  exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
@@ -93,7 +90,8 @@ Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } :
 
  exp_eq_dec  _  _ := in_right.
 
-(* The size of an expression *)
+(* Calculate the size of an expression. We could do this 
+   with equations, but it is simple enough not to. *)
 Fixpoint size_exp {n} (e1 : exp n) : nat :=
   match e1 with
     | abs e2 => 1 + (size_exp e2)
@@ -101,6 +99,25 @@ Fixpoint size_exp {n} (e1 : exp n) : nat :=
     | var_b m => 1
     | app e2 e3 => 1 + (size_exp e2) + (size_exp e3)
   end.
+
+(***********************************************************************)
+(** * Substitution *)
+(***********************************************************************)
+
+(** Substitution replaces a free variable with a term.  The definition below
+    is simple because bound variables are represented using indices. As a
+    result, there is no need to worry about variable capture.  *)
+
+(** 
+    Note that [subst_exp] uses [x == y] for decidable equality.
+    This operation is defined in the Metatheory library. 
+    
+    This definition is defined for *all* scoping levels of the term we are 
+    substituting into. However, the replacement for y (i.e. the expression u)
+    must be compatible with the scoping level for e. 
+    As a result, we weaken u when going under a binder.
+
+ *)
 
 (* Weaken the number of binders allowed in an expression by 1 *)
 Equations weaken_exp {n} (e : exp n): exp (S n):= {
@@ -110,73 +127,14 @@ Equations weaken_exp {n} (e : exp n): exp (S n):= {
   weaken_exp  (app f t) => app (weaken_exp f) (weaken_exp t)
   }.
 
-(* Weakening *)
-    
-(* 
-Equations weaken {n} m (e: exp n) : exp (n+m) :=
-  weaken m (var_b m0) := var_b (weaken_fin m m0);
-  weaken m (var_f x) :=  var_f x;
-  weaken m (abs e) := abs  (weaken m e);
-  weaken m (app e1 e2) := app (weaken m e1) (weaken m e2).
-
-Lemma size_exp_weaken :
-(forall n1 (e1 : exp n1) m,
-  size_exp (weaken m e1) = size_exp e1).
-Proof.
-  intros n1 e1 m.
-  funelim (weaken m e1); program_simpl.
-Qed.
-
-#[global] Hint Resolve size_exp_weaken : lngen.
-Hint Rewrite size_exp_weaken using solve [auto] : lngen. 
-*)
-
-(* Close *)
-
-(* Closing an expression means replacing a free variable x1 with a new bound variable. 
-   This increases the binding depth of the expression. 
-   Existing bound variables must be weakened to the new scope. Where we find a new 
-   free variable, we introduce it at the current binding depth using gof.
- *)
-
-Equations close_exp_wrt_exp {k : nat} (x1 : var) (e1 : exp k) : exp (S k) :=
-  close_exp_wrt_exp x1 (var_b m) := 
-    var_b (increase_fin m);
-  close_exp_wrt_exp x1 (@var_f k x2) := 
-    if (x1 == x2) then (var_b (gof k)) else (var_f x2);
-  close_exp_wrt_exp x1 (abs e2) := 
-    abs (close_exp_wrt_exp x1 e2);
-  close_exp_wrt_exp x1 (app e2 e3) := 
-    app (close_exp_wrt_exp x1 e2) (close_exp_wrt_exp x1 e3).
-
-(***********************************************************************)
-(** * Substitution *)
-(***********************************************************************)
-
-(** Substitution replaces a free variable with a term.  The definition
-    below is simple for two reasons:
-      - Because bound variables are represented using indices, there
-        is no need to worry about variable capture.
-      - We assume that the term being substituted in is locally
-        closed.  Thus, there is no need to shift indices when
-        passing under a binder.
-*)
-
-(** 
-    Note that [subst_exp] uses [x == y] for decidable equality.
-    This operation is defined in the Metatheory library. 
-    
-    This definition is defined for *all* scoping levels of the term we are 
-    substituting into. However, the replacement for y (i.e. the expression u)
-    must be locally closed. As a result, we weaken it when we find it.
-
- *)
-
+(* Substitute for a free variable. *)
 Equations subst_exp_wrt_exp {n} (u:exp n) (y:var) (e:exp n) : exp n :=
   subst_exp_wrt_exp u y (var_b m)   := var_b m;
   subst_exp_wrt_exp u y (var_f x)   := if x == y then u else var_f x;
-  subst_exp_wrt_exp u y (abs e1)    := abs (subst_exp_wrt_exp (weaken_exp u) y e1);
-  subst_exp_wrt_exp u y (app e1 e2) := app (subst_exp_wrt_exp u y e1) (subst_exp_wrt_exp u y e2).
+  subst_exp_wrt_exp u y (abs e1)    := 
+    abs (subst_exp_wrt_exp (weaken_exp u) y e1);
+  subst_exp_wrt_exp u y (app e1 e2) := 
+    app (subst_exp_wrt_exp u y e1) (subst_exp_wrt_exp u y e2).
 
 (***********************************************************************)
 (** * Free variables *)
@@ -203,64 +161,59 @@ end.
     library.  *)
 
 
-
 (***********************************************************************)
 (** * Opening *)
 (***********************************************************************)
 
 (** Opening replaces an index with a term.  It corresponds to informal
-    substitution for a bound variable, such as in the rule for beta
-    reduction.  Note that only "dangling" indices (those that do not
-    refer to any abstraction) can be opened.  Opening has no effect for
-    terms that are locally closed.
+    substitution for a bound variable, such as in the rule for beta reduction.
+    Note that only "dangling" indices (those that do not refer to any
+    abstraction) can be opened, so the index of [exp] must be at least 1.
 
-    Natural numbers are just an inductive datatype with two constructors:
-    [O] (as in the letter 'oh', not 'zero') and [S], defined in
-    Coq.Init.Datatypes.  Coq allows literal natural numbers to be written
-    using standard decimal notation, e.g., 0, 1, 2, etc.  The function
-    [lt_eq_lt_dec] compares its two arguments for ordering.
+    In the bound variable case, we check to see if the fin is 0 using
+    [decrease_fin]. If it is zero, we found the place for [u].  If it is
+    nonzero, we get the same value in a smaller scope.
 
-    We do not assume that zero is the only unbound index in the term.
-    Consequently, we must substract one when we encounter other unbound
-    indices (i.e. the [inright] case).
-
-    However, we do assume that the argument [u] is locally closed.  This
-    assumption simplifies the implementation since we do not need to
-    shift indices in [u] when passing under a binder. *)
+    We assume that the argument [u] has one fewer "dangling" index than the
+    term that we are opening. As with [subst] we need to weaken this term when
+    we go under a binder.  *)
 
 
 Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
   open_exp_wrt_exp u (var_b m) :=
      match decrease_fin k m with
-        | Some f => var_b f
         | None => u
+        | Some f => var_b f
       end;
   open_exp_wrt_exp u (var_f x)   := var_f x;
-  open_exp_wrt_exp u (abs e)     := abs (open_exp_wrt_exp (weaken_exp u) e);
-  open_exp_wrt_exp u (app e1 e2) := app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
+  open_exp_wrt_exp u (abs e)     := 
+    abs (open_exp_wrt_exp (weaken_exp u) e);
+  open_exp_wrt_exp u (app e1 e2) := 
+    app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
 
+(* Close *)
+
+(** Closing an expression means replacing a free variable x1 with a new bound
+   variable.  This increases the binding depth of the expression by 1.
+   Existing bound variables must be weakened to the new scope, using
+   [increase_fin]. Where we find a free variable that should be bound, we
+   introduce it at the current binding depth using [gof].  *)
+
+Equations close_exp_wrt_exp {k : nat} (x1 : var) (e1 : exp k) : exp (S k) :=
+  close_exp_wrt_exp x1 (var_b m) := 
+    var_b (increase_fin m);
+  close_exp_wrt_exp x1 (@var_f k x2) := 
+    if (x1 == x2) then (var_b (gof k)) else (var_f x2);
+  close_exp_wrt_exp x1 (abs e2) := 
+    abs (close_exp_wrt_exp x1 e2);
+  close_exp_wrt_exp x1 (app e2 e3) := 
+    app (close_exp_wrt_exp x1 e2) (close_exp_wrt_exp x1 e3).
 
 (***********************************************************************)
-(** * Class + rewrite theory ??? *)
+(** * Class  instances *)
 (***********************************************************************)
 
-(* new! *)
-
-Ltac simp_stlc := repeat first [ 
-                       simp subst_exp_wrt_exp
-                     || simp open_exp_wrt_exp
-                     || simp close_exp_wrt_exp
-                     || simp weaken_exp
-                     || simpl size_exp
-                     || simpl fv_exp
-                     || simp increase_fin 
-                     || simp decrease_fin
-                     ].
-
-(* single parameter for now *)
-
-#[global]
-Instance Syntax_exp : Syntax exp := { 
+#[global] Instance Syntax_exp : Syntax exp := { 
     fv := fun {n} => @fv_exp n;
     size := fun {n} => @size_exp n; 
     weaken := fun {n} =>  @weaken_exp n;
@@ -273,86 +226,7 @@ Instance Syntax_exp : Syntax exp := {
     open := fun {n} => @open_exp_wrt_exp n;
     subst := fun {n} => @subst_exp_wrt_exp n
 }.
-
 #[global] Opaque Subst_exp.
-
-Lemma fv_exp_var_b : forall n (m: fin n), fv (var_b m) = {}. 
-Proof. reflexivity. Qed.
-Lemma fv_exp_var_f : forall n (x:atom), fv (var_f (n:=n) x) = {{x}}.
-Proof. reflexivity. Qed.
-Lemma fv_exp_abs : forall n (e: exp (S n)), fv (abs e) = fv e.
-Proof. reflexivity. Qed.
-Lemma fv_exp_app : forall n (e1 : exp n) (e2: exp n), fv (app e1 e2) = fv e1 `union` fv e2.
-Proof. reflexivity. Qed.
-
-Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
-
-(* Re-define behavior of size in terms of size_exp *)
-Lemma size_exp_var_b : forall n (m: fin n), size (var_b m) = 1. 
-Proof. reflexivity. Qed.
-Lemma size_exp_var_f : forall n (x:atom), size (var_f (n:=n) x) = 1.
-Proof. reflexivity. Qed.
-Lemma size_exp_abs : forall n (e: exp (S n)), size (abs e) = 1 + (size e).
-Proof. reflexivity. Qed.
-Lemma size_exp_app : forall n (e1 : exp n) (e2: exp n), size (app e1 e2) = 1 + size e1 + size e2.
-Proof. reflexivity. Qed.
-
-Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
-
-Lemma weaken_exp_var_b : forall n (m: fin n),   weaken  (var_b m) = var_b (increase_fin m).
-Proof. reflexivity. Qed.
-Lemma weaken_exp_var_f : forall n (x:atom), weaken (var_f (n:=n) x) = var_f x.
-Proof. reflexivity. Qed.
-Lemma weaken_exp_abs : forall n (e: exp (S n)), weaken (abs e) = abs (weaken e).
-Proof. reflexivity. Qed.
-Lemma weaken_exp_app : forall n (e1 : exp n) (e2: exp n), weaken (app e1 e2) = app (weaken e1) (weaken e2).
-Proof. reflexivity. Qed.
-
-Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
-
-Lemma close_exp_var_b : forall n x (m: fin n),   close x (var_b m) = var_b (increase_fin m).
-Proof. reflexivity. Qed.
-Lemma close_exp_var_f : forall n (x1 x2:atom), close x1 (var_f (n:=n) x2) = if (x1 == x2) then (var_b (gof n)) else (var_f x2).
-Proof. reflexivity. Qed.
-Lemma close_exp_abs : forall n (e: exp (S n)) x1, close x1 (abs e) = abs (close x1 e).
-Proof. reflexivity. Qed.
-Lemma close_exp_app : forall n (e1 : exp n) (e2: exp n) x1, close x1 (app e1 e2) = app (close x1 e1) (close x1 e2).
-Proof. reflexivity. Qed.
-
-Hint Rewrite close_exp_var_b close_exp_var_f close_exp_abs close_exp_app : close.
-
-Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), open u (var_b m) = match decrease_fin n m with
-                                                                        | Some f => var_b f
-                                                                        | None => u
-                                                                        end.
-Proof. reflexivity. Qed.
-Lemma open_exp_var_f : forall n (u:exp n) (x:atom), open u (var_f (n:= S n) x) = var_f x.
-Proof. reflexivity. Qed.
-
-Lemma open_exp_abs : forall n (u:exp n) (e: exp (S (S n))), 
-    open u (abs e) = abs (open (weaken u) e).
-Proof. reflexivity. Qed. 
-Lemma open_exp_app : forall n (u:exp n) (e1 : exp (S n)) (e2: exp (S n)), 
-    open u (app e1 e2) = app (open u e1) (open u e2).
-Proof. reflexivity. Qed.
-
-Hint Rewrite open_exp_var_b open_exp_var_f open_exp_abs open_exp_app : open.
-
-Lemma subst_exp_var_b : forall n (u:exp n) (y:atom) (m: fin n), 
-    subst u y (var_b m) = var_b m.
-Proof. reflexivity. Qed.
-Lemma subst_exp_var_f : forall n (u:exp n) (y:atom) (x:atom), 
-    subst u y (var_f (n:=n) x) = if x == y then u else var_f x.
-Proof. reflexivity. Qed.
-Lemma subst_exp_abs : forall n (u:exp n) (y:atom) (e: exp (S n)), 
-    subst u y (abs e) = abs (subst (weaken u) y e).
-Proof. reflexivity. Qed.
-Lemma subst_exp_app : forall n (u:exp n) (y:atom) (e1 : exp n) (e2: exp n), 
-    subst u y (app e1 e2) = app (subst u y e1) (subst u y e2).
-Proof. reflexivity. Qed.
-
-Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
-
 
 (***********************************************************************)
 (** * Typing contexts *)
@@ -430,12 +304,11 @@ Definition is_value (e : exp 0) : Prop :=
 
 Inductive step : exp 0 -> exp 0 -> Prop :=
  | step_beta : forall (e1:exp 1)(e2:exp 0),
-     step (app (abs e1) e2) (open e2 e1)
+     step (app (abs e1) e2) (e1 ^ e2)
  | step_app : forall (e1 e2 e1':exp 0),
      step e1 e1' ->
      step (app e1 e2) (app e1' e2).
 
 Derive Signature for step.
 
-#[global]
-Hint Constructors typing step : core.
+#[global] Hint Constructors typing step : core.
