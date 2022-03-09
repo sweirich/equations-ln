@@ -45,7 +45,7 @@ Proof. reflexivity. Qed.
 Lemma fv_exp_app : forall n (e1 : exp n) (e2: exp n), fv (app e1 e2) = fv e1 `union` fv e2.
 Proof. reflexivity. Qed.
 
-Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
+#[export] Hint Rewrite fv_exp_var_b fv_exp_var_f fv_exp_abs fv_exp_app : fv.
 
 (* Re-define behavior of size in terms of size_exp *)
 Lemma size_exp_var_b : forall n (m: fin n), size (var_b m) = 1. 
@@ -57,7 +57,7 @@ Proof. reflexivity. Qed.
 Lemma size_exp_app : forall n (e1 : exp n) (e2: exp n), size (app e1 e2) = 1 + size e1 + size e2.
 Proof. reflexivity. Qed.
 
-Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
+#[export] Hint Rewrite size_exp_var_b size_exp_var_f size_exp_abs size_exp_app : size.
 
 Lemma weaken_exp_var_b : forall n (m: fin n),   weaken  (var_b m) = var_b (increase_fin m).
 Proof. reflexivity. Qed.
@@ -68,7 +68,7 @@ Proof. reflexivity. Qed.
 Lemma weaken_exp_app : forall n (e1 : exp n) (e2: exp n), weaken (app e1 e2) = app (weaken e1) (weaken e2).
 Proof. reflexivity. Qed.
 
-Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
+#[export] Hint Rewrite weaken_exp_var_b weaken_exp_var_f weaken_exp_abs weaken_exp_app : weaken.
 
 Lemma close_exp_var_b : forall n x (m: fin n),   close x (var_b m) = var_b (increase_fin m).
 Proof. reflexivity. Qed.
@@ -79,7 +79,7 @@ Proof. reflexivity. Qed.
 Lemma close_exp_app : forall n (e1 : exp n) (e2: exp n) x1, close x1 (app e1 e2) = app (close x1 e1) (close x1 e2).
 Proof. reflexivity. Qed.
 
-Hint Rewrite close_exp_var_b close_exp_var_f close_exp_abs close_exp_app : close.
+#[export] Hint Rewrite close_exp_var_b close_exp_var_f close_exp_abs close_exp_app : close.
 
 Lemma open_exp_var_b : forall n (u:exp n) (m: fin (S n)), 
     open u (var_b m) = 
@@ -98,7 +98,7 @@ Lemma open_exp_app : forall n (u:exp n) (e1 : exp (S n)) (e2: exp (S n)),
     open u (app e1 e2) = app (open u e1) (open u e2).
 Proof. reflexivity. Qed.
 
-Hint Rewrite open_exp_var_b open_exp_var_f open_exp_abs open_exp_app : open.
+#[export] Hint Rewrite open_exp_var_b open_exp_var_f open_exp_abs open_exp_app : open.
 
 Lemma subst_exp_var_b : forall n (u:exp n) (y:atom) (m: fin n), 
     subst u y (var_b m) = var_b m.
@@ -113,7 +113,7 @@ Lemma subst_exp_app : forall n (u:exp n) (y:atom) (e1 : exp n) (e2: exp n),
     subst u y (app e1 e2) = app (subst u y e1) (subst u y e2).
 Proof. reflexivity. Qed.
 
-Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
+#[export] Hint Rewrite subst_exp_var_b subst_exp_var_f subst_exp_abs subst_exp_app : subst.
 
 
 (* *********************************************************************** *)
@@ -166,8 +166,8 @@ Proof.
 Qed.
 
 #[global] Hint Resolve size_exp_weaken_exp : lngen.
-Hint Rewrite size_exp_weaken_exp using solve [auto] : lngen.  
-Hint Rewrite size_exp_weaken_exp : weaken_exp.  
+#[export] Hint Rewrite size_exp_weaken_exp using solve [auto] : lngen.  
+#[export] Hint Rewrite size_exp_weaken_exp : weaken_exp.  
 
 Lemma fv_exp_weaken_exp : 
 (forall n1 (e1 : exp n1),
@@ -178,8 +178,8 @@ Proof.
 Qed.
 
 #[global] Hint Resolve fv_exp_weaken_exp : lngen.
-Hint Rewrite fv_exp_weaken_exp using solve [auto] : lngen.  
-Hint Rewrite fv_exp_weaken_exp : weaken_exp.  
+#[export] Hint Rewrite fv_exp_weaken_exp using solve [auto] : lngen.  
+#[export] Hint Rewrite fv_exp_weaken_exp : weaken_exp.  
 
 (* *********************************************************************** *)
 (** * Theorems about [size] *)
@@ -219,7 +219,7 @@ dependent induction e; default_simp. destruct_option; default_simp.
 Qed.
 
 #[global] Hint Resolve size_exp_open_exp_wrt_exp_var : lngen.
-Hint Rewrite size_exp_open_exp_wrt_exp_var using solve [auto] : lngen.
+#[export] Hint Rewrite size_exp_open_exp_wrt_exp_var using solve [auto] : lngen.
 
 (* *********************************************************************** *)
 (** * Theorems about [open] and [close] *)
@@ -243,13 +243,17 @@ Proof.
   all: try discriminate.
   all: try simp close_exp_wrt_exp in *.
   all: try (destruct (x1 == x); simpl in H; try discriminate).
-  all: try noconf_exp; default_simp.
-  + eapply increase_fin_inj; eauto.  
-  + exfalso. eapply increase_not_n; eauto.
-  + exfalso. eapply increase_not_n; eauto.  
+  all: try solve [f_equal; eapply increase_fin_inj; eauto].
+  all: try noconf_exp.
+  all: try solve [exfalso; eapply increase_not_n; eauto].
+  all: try destruct (x1 == x2) eqn:h.
+  all: try noconf_exp; subst; auto.
+  all: try noconf H.
+  all: try solve [exfalso; eapply increase_not_n; eauto].
+  all: default_simp.
 Qed.
 
-Hint Immediate close_exp_wrt_exp_inj : lngen.
+#[export] Hint Immediate close_exp_wrt_exp_inj : lngen.
 
 Lemma close_exp_wrt_exp_open_exp_wrt_exp :
 (forall n1 (e1 : exp (S n1)) x1 ,
@@ -264,7 +268,7 @@ destruct decrease_fin eqn:EQ; default_simp.
 Qed.
 
 #[global] Hint Resolve close_exp_wrt_exp_open_exp_wrt_exp : lngen.
-Hint Rewrite close_exp_wrt_exp_open_exp_wrt_exp using solve [auto] : lngen. 
+#[export] Hint Rewrite close_exp_wrt_exp_open_exp_wrt_exp using solve [auto] : lngen. 
 
 
 Lemma open_exp_wrt_exp_close_exp_wrt_exp :
@@ -275,7 +279,7 @@ Proof.
 Qed.
 
 #[global] Hint Resolve open_exp_wrt_exp_close_exp_wrt_exp : lngen.
-Hint Rewrite open_exp_wrt_exp_close_exp_wrt_exp using solve [auto] : lngen.
+#[export] Hint Rewrite open_exp_wrt_exp_close_exp_wrt_exp using solve [auto] : lngen.
 
 
 Lemma open_exp_wrt_exp_inj :
@@ -302,7 +306,7 @@ Proof.
  all: eauto.
 Qed.
 
-Hint Immediate open_exp_wrt_exp_inj : lngen.
+#[export] Hint Immediate open_exp_wrt_exp_inj : lngen.
 
 (* *********************************************************************** *)
 (** * More theorems about [open] and [close] *)
@@ -320,7 +324,7 @@ dependent induction e1; default_simp.
 Qed.
 
 #[global] Hint Resolve close_exp_wrt_exp_weaken_exp : lngen.
-Hint Rewrite close_exp_wrt_exp_weaken_exp using solve [auto] : lngen.
+#[export] Hint Rewrite close_exp_wrt_exp_weaken_exp using solve [auto] : lngen.
 
 Lemma open_exp_wrt_exp_weaken_exp :
 forall n1 (e2 : exp n1) e1,
@@ -330,7 +334,7 @@ intros n1 e2.
 funelim (weaken_exp e2); default_simp.
 Qed.
 #[global] Hint Resolve open_exp_wrt_exp_weaken_exp : lngen.
-Hint Rewrite open_exp_wrt_exp_weaken_exp using solve [auto] : lngen.
+#[export] Hint Rewrite open_exp_wrt_exp_weaken_exp using solve [auto] : lngen.
 
 
 (* *********************************************************************** *)
@@ -347,7 +351,7 @@ dependent induction e1; default_simp; fsetdec.
 Qed.
 
 #[global] Hint Resolve fv_exp_close_exp_wrt_exp : lngen.
-Hint Rewrite fv_exp_close_exp_wrt_exp using solve [auto] : lngen.
+#[export] Hint Rewrite fv_exp_close_exp_wrt_exp using solve [auto] : lngen.
 
 Lemma fv_exp_open_exp_wrt_exp_lower :
 (forall n1 (e1 : exp (S n1)) (e2 : exp n1),
@@ -384,7 +388,7 @@ dependent induction e1; default_simp.
 Qed.
 
 #[global] Hint Resolve fv_exp_subst_exp_wrt_exp_fresh : lngen.
-Hint Rewrite fv_exp_subst_exp_wrt_exp_fresh using solve [auto] : lngen.
+#[export] Hint Rewrite fv_exp_subst_exp_wrt_exp_fresh using solve [auto] : lngen.
 
 Lemma fv_exp_subst_exp_wrt_exp_lower :
 (forall n1 (e1 : exp n1) e2 x1,
@@ -458,7 +462,7 @@ Proof.
 Qed.
 
 #[global] Hint Resolve subst_exp_wrt_exp_fresh_eq : lngen.
-Hint Rewrite subst_exp_wrt_exp_fresh_eq using solve [auto] : lngen.
+#[export] Hint Rewrite subst_exp_wrt_exp_fresh_eq using solve [auto] : lngen.
 
 Lemma subst_exp_wrt_exp_fresh_same :
 (forall n1 (e2 : exp n1) e1 x1,
@@ -495,7 +499,7 @@ Proof.
 Qed.
 
 #[global] Hint Resolve subst_exp_wrt_exp_weaken_exp : lngen.
-Hint Rewrite subst_exp_wrt_exp_weaken_exp : lngen.
+#[export] Hint Rewrite subst_exp_wrt_exp_weaken_exp : lngen.
 
 (* SCW: this one might be simpler if we only substitute 
    locally closed terms *)
@@ -508,9 +512,7 @@ Proof.
 intros n1 e1 e2 e3 x1.
 funelim (open_exp_wrt_exp e2 e3).
 all: default_simp.
-destruct (decrease_fin k f) eqn:E1.
-default_simp.
-default_simp.
+destruct decrease_fin eqn:E1; default_simp.
 Qed.
 
 #[global] Hint Resolve subst_exp_open_exp_wrt_exp : lngen.
@@ -605,7 +607,7 @@ all: default_simp.
 Qed.
 
 #[global] Hint Resolve subst_exp_wrt_exp_intro : lngen.
-Hint Rewrite subst_exp_wrt_exp_intro using solve [auto] : lngen.
+#[export] Hint Rewrite subst_exp_wrt_exp_intro using solve [auto] : lngen.
 
 (* *********************************************************************** *)
 (** * "Restore" tactics *)
@@ -659,7 +661,7 @@ Ltac default_autorewrite ::= fail.
 
 #[global] Opaque SVSTE.
 
-Instance SSSTE : SubstSubstTheory exp exp := {
+#[global] Instance SSSTE : SubstSubstTheory exp exp := {
   subst_open := subst_exp_open_exp_wrt_exp;
   subst_subst := subst_exp_wrt_exp_subst_exp_wrt_exp;
 }.

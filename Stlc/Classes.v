@@ -162,13 +162,13 @@ Class SubstSubstTheory (exp : nat -> Set) (u : nat -> Set)
 
 Create HintDb syntax.
 
-Hint Rewrite  @close_open
+#[export] Hint Rewrite @close_open
   using solve [auto; try typeclasses eauto] : syntax.
 
-Hint Rewrite @open_close
+#[export] Hint Rewrite @open_close
   using solve [auto; try typeclasses eauto] : syntax.
 
-Hint Rewrite @subst_open_var
+#[export] Hint Rewrite @subst_open_var
   using solve [auto; try typeclasses eauto] : syntax.
 
 

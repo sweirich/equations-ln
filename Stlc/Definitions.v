@@ -75,8 +75,8 @@ Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } :
       exp_eq_dec _ _ (right p) := in_right } ; 
 
  exp_eq_dec (var_f x1) (var_f x2) with EqDec_eq_of_X x1 x2 => {
-      exp_eq_dec (var_f x1) (var_f x2) (left eq_refl) := left _ ; 
-      exp_eq_dec (var_f x2) (var_f x2) (right p) := in_right } ; 
+      exp_eq_dec _ _ (left eq_refl) := left _ ; 
+      exp_eq_dec _ _ (right p) := in_right } ; 
 
  exp_eq_dec (abs e1) (abs e2) with exp_eq_dec e1 e2  => {
       exp_eq_dec _ _ (left eq_refl) := left _ ; 

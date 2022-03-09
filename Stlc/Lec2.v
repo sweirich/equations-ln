@@ -464,8 +464,6 @@ Qed.
         Use [simp subst] to simplify the substitution.
 *)
 
-Hint Rewrite  @subst_open_var 
-  using solve [auto; try typeclasses eauto] : syntax.
 
 Lemma typing_subst : forall (E F : ctx) e u S T (z : atom),
   typing (F ++ [(z,S)] ++ E) e T ->

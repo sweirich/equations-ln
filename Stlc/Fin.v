@@ -172,9 +172,9 @@ Proof.
 Qed.
 
 Create HintDb fin.
-Hint Rewrite fog_gof : fin.
-Hint Rewrite decrease_fin_increase_fin : fin.
-Hint Rewrite decrease_fin_gof : fin.
+#[export] Hint Rewrite fog_gof : fin.
+#[export] Hint Rewrite decrease_fin_increase_fin : fin.
+#[export] Hint Rewrite decrease_fin_gof : fin.
 #[export] Hint Resolve decrease_to_fin : fin.
 #[export] Hint Resolve decrease_increase_fin : fin.
 #[export] Hint Resolve increase_not_n : fin.
