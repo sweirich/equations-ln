@@ -207,6 +207,13 @@ Create HintDb fin.
 #[export] Hint Resolve decrease_increase_fin : fin.
 #[export] Hint Resolve increase_not_n : fin.
 
+#[export] Hint Extern 1 (_ = _) => match goal with 
+ | [ H : increase_fin _ = increase_fin _ |- _ ] => apply increase_fin_inj end : fin.
+
+#[export] Hint Extern 1 (_ = _) => match goal with 
+ | [ H : gof _ = increase_fin _ |- _ ] => exfalso; eapply increase_not_n end : fin.
+
+(*
 
 Inductive le : nat -> nat -> Type :=
 | le_O n : 0 <= n
@@ -231,3 +238,5 @@ Next Obligation. apply foo. Defined.
 Print fin_plus.
 Print fin_plus_obligations_obligation_1.
 (** Won't pass the guardness check which diverges anyway. *)
+*)
+

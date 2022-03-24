@@ -47,38 +47,20 @@ Inductive exp : nat ->  Set :=  (*r expressions *)
  | abs   : forall {n} (e:exp (S n)), exp n
  | app   : forall {n} (e1:exp n) (e2:exp n), exp n.
 
-(* I'm not sure what these do. *)
+(* [Signature] creates a sigma type that allowing packing values with their
+   constructor index.
+
+   [NoConfusion] creates a heterogenous relation that defines injectivity and
+   discrimination of constructors: That is, two values with the same
+   constructor are equal if their arguments are also equal. [NoConfusionHom]
+   produces a homogenous relation of the same. *)
 Derive Signature NoConfusion NoConfusionHom for exp.
-About eq_dec.
 
-Print Instances EqDec.
-
-Instance Auto_EqDec : EqDec Atom.atom := Atom.eq_dec.
-Derive Subterm EqDec for exp.
+(* This should be part of metalib *)
+#[local] Instance Atom_EqDec : EqDec Atom.atom := Atom.eq_dec.
 
 (* Decidable equality for expressions *)
-(*
-Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
- exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (var_f x1) (var_f x2) with EqDec_eq_of_X x1 x2 => {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (abs e1) (abs e2) with exp_eq_dec e1 e2  => {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (app e1 e2) (app e3 e4) 
-   with (exp_eq_dec e1 e3, exp_eq_dec e2 e4) => {
-      exp_eq_dec _ _ (left eq_refl , left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p, left eq_refl) := in_right ;
-      exp_eq_dec _ _ (_ , right p) := in_right } ; 
-
- exp_eq_dec  _  _ := in_right.
-*)
+Derive Subterm EqDec for exp.
 
 (* Calculate the size of an expression. We could do this 
    with equations, but it is simple enough not to. *)
@@ -110,22 +92,24 @@ Fixpoint size_exp {n} (e1 : exp n) : nat :=
  *)
 
 (* Weaken the number of bound variables allowed in an expression by 1 *)
-(*
+
 Equations weaken_exp {n} (e : exp n): exp (S n):= {
   weaken_exp  (var_b m) => var_b (increase_fin m);
   weaken_exp  (var_f x) => var_f x;
   weaken_exp  (abs t)   => abs (weaken_exp t);
   weaken_exp  (app f t) => app (weaken_exp f) (weaken_exp t)
-  }. *)
+  }. 
 
-(* Can also write this as a Fixpoint. *)
+(* Can also write this as a Fixpoint. But, let's do everything with 
+   equations*)
+(*
 Fixpoint weaken_exp {n} (e : exp n) : exp (S n) :=
   match e with 
   | var_b m => var_b (increase_fin m)
   | var_f x => var_f x
   | abs t => abs (weaken_exp t)
   | app f t => app (weaken_exp f) (weaken_exp t)
-  end.
+  end. *)
 
 (* Substitute for a free variable. *)
 Equations subst_exp_wrt_exp {n} (u:exp n) (y:var) (e:exp n) : exp n :=
@@ -183,11 +167,10 @@ end.
 (* This is only correct if we call it with exp 0 *)
 
 Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
-  open_exp_wrt_exp u (var_b m) :=
-     match decrease_fin k m with
-        | None => u
-        | Some f => var_b f
-      end;
+  open_exp_wrt_exp u (var_b m) with decrease_fin k m := {
+    | None => u
+    | Some f => var_b f
+    };
   open_exp_wrt_exp u (var_f x)   := var_f x;
   open_exp_wrt_exp u (abs e)     := 
     abs (open_exp_wrt_exp (weaken_exp u) e);

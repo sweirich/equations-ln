@@ -32,7 +32,7 @@ Ltac simp_stlc := repeat first [
                        simp subst_exp_wrt_exp
                      || simp open_exp_wrt_exp
                      || simp close_exp_wrt_exp
-                     || simpl weaken_exp
+                     || simp weaken_exp
                      || simpl size_exp
                      || simpl fv_exp
                      || simp increase_fin 
@@ -42,7 +42,7 @@ Ltac simp_stlc := repeat first [
 
 (* like an inversion tactic for equalities *)
 Ltac noconf_exp := 
-  match goal with 
+  repeat lazymatch goal with 
     | [ H : var_b _ = var_b _ |- _ ] => noconf H
     | [ H : var_f _ = var_f _ |- _ ] => noconf H
     | [ H : abs _ = abs _ |- _ ] => noconf H
@@ -152,13 +152,6 @@ Qed.
 Ltac default_auto ::= auto with lngen brute_force; tauto.
 Ltac default_autorewrite ::= simp_stlc.
 
-Hint Extern 1 (_ = _) => match goal with 
- | [ H : increase_fin _ = increase_fin _ |- _ ] => apply increase_fin_inj end : lngen.
-
-Check increase_not_n.
-
-Hint Extern 1 (_ = _) => match goal with 
- | [ H : gof _ = increase_fin _ |- _ ] => exfalso; eapply increase_not_n end : lngen.
 
 Lemma close_exp_wrt_exp_inj :
 (forall k (e1 : exp k) e2 x1,
@@ -217,20 +210,16 @@ Lemma open_exp_wrt_exp_inj :
   open_exp_wrt_exp (var_f x1) e2 = open_exp_wrt_exp (var_f x1) e1 ->
   e2 = e1).
 Proof.
- intros k e2 e1 x1 FV1 FV2. 
- remember (var_f x1) as u.
- funelim (open_exp_wrt_exp u e2). 
- all: simp_stlc. 
+ intros k e2 e1 x FV1 FV2.  
+ dependent induction e1; dependent induction e2.
+ all: simp open_exp_wrt_exp in *. 
+ all: try destruct (decrease_fin k f0) eqn:E1. 
+ all: try destruct (decrease_fin k f) eqn:E2. 
+ all: simp open_exp_wrt_exp in *; simpl in *.
  all: intros h.
- all: match goal with [ |- _ = ?e ] => dependent elimination e end.
- all: simp open_exp_wrt_exp in h.
  all: noconf h.
- all: try destruct_option. 
- all: try destruct_option. 
- all: try noconf h.
- all: simpl in FV1; simpl in FV2.
- all: default_simp. 
- all: try (rewrite <- EQ0 in EQ; apply decrease_fin_inj in EQ).
+ all: default_simp.
+ all: try (rewrite <- E1 in E2; apply decrease_fin_inj in E2).
  all: eauto.
 Qed.
 
@@ -439,7 +428,7 @@ Proof.
 intros n1 e1 e2 e3 x1.
 funelim (open_exp_wrt_exp e2 e3).
 all: default_simp.
-destruct decrease_fin eqn:E1; default_simp.
+all: destruct (decrease_fin k m) eqn:E1; default_simp.
 Qed.
 
 #[global] Hint Resolve subst_exp_open_exp_wrt_exp : lngen.
