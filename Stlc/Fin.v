@@ -74,13 +74,13 @@ Equations gof (n : nat) : fin (S n) :=
 (* ------- properties of definitions above ------- *)
 
 Lemma fog_gof (n : nat) : fog (gof n) = n.
-Proof with auto with arith.
-  intros. funelim (gof n)... simp fog; congruence.
+Proof.
+  funelim (gof n); simp fog; auto.
 Qed.
 
 Lemma fog_inj {n} (f : fin n) : fog f < n.
-Proof with auto with arith. 
-  intros. depind f; simp fog...
+Proof.
+  funelim (fog f); simp fog; auto with arith.
 Qed.
 
 

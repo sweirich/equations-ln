@@ -41,38 +41,31 @@ Scheme Equality for typ.
 (* Expressions are indexed by the number of *bound variables*
    that appear in terms. *)
 
+Derive EqDec for fin.
+
 Inductive exp : nat ->  Set :=  (*r expressions *)
  | var_b : forall {n}, fin n -> exp n
  | var_f : forall {n} (x:var), exp n
  | abs   : forall {n} (e:exp (S n)), exp n
  | app   : forall {n} (e1:exp n) (e2:exp n), exp n.
 
-(* I'm not sure what these do. *)
+(* [Signature] creates a sigma type that allowing packing values with their
+   constructor index.
+
+   [NoConfusion] creates a heterogenous relation that defines injectivity and
+   discrimination of constructors: That is, two values with the same
+   constructor are equal if their arguments are also equal. [NoConfusionHom]
+   produces a homogenous relation of the same. *)
 Derive Signature NoConfusion NoConfusionHom for exp.
+
+#[local] Instance Auto_EqDec : EqDec Atom.atom := Atom.eq_dec.
+Derive Subterm EqDec for exp.
 
 (* We cannot derive decidable equality automatically, but 
    we can define it. *)
 (* Decidable equality for expressions *)
-Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
- exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (var_f x1) (var_f x2) with EqDec_eq_of_X x1 x2 => {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (abs e1) (abs e2) with exp_eq_dec e1 e2  => {
-      exp_eq_dec _ _ (left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p) := in_right } ; 
-
- exp_eq_dec (app e1 e2) (app e3 e4) 
-   with (exp_eq_dec e1 e3, exp_eq_dec e2 e4) => {
-      exp_eq_dec _ _ (left eq_refl , left eq_refl) := left _ ; 
-      exp_eq_dec _ _ (right p, left eq_refl) := in_right ;
-      exp_eq_dec _ _ (_ , right p) := in_right } ; 
-
- exp_eq_dec  _  _ := in_right.
+Definition exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } :=
+  exp_eqdec n e1 e2.
 
 (* Calculate the size of an expression. We could do this 
    with equations, but it is simple enough not to. *)
@@ -176,11 +169,10 @@ end.
 
 
 Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
-  open_exp_wrt_exp u (var_b m) :=
-     match decrease_fin k m with
-        | None => u
-        | Some f => var_b f
-      end;
+  open_exp_wrt_exp u (var_b m) with decrease_fin k m := {
+    | None => u
+    | Some f => var_b f
+    };
   open_exp_wrt_exp u (var_f x)   := var_f x;
   open_exp_wrt_exp u (abs e)     := 
     abs (open_exp_wrt_exp (weaken_exp u) e);
