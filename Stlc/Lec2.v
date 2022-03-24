@@ -14,14 +14,17 @@ From Equations Require Import Equations.
 
 Require Import Metalib.Metatheory.
 Require Import Stlc.Classes.
+Require Import Stlc.ClassInstances.
+Require Import Stlc.ClassRewrites.
+Require Import Stlc.DefinitionsTyping.
 Require Import Stlc.Fin.
-Require Import Stlc.Definitions.
+Require Import Stlc.DefinitionsSyntax.
+
+
+
 Opaque Syntax_exp.
 
 Import SyntaxNotations.
-Require Import Stlc.Lemmas.
-
-
 
 
 (*************************************************************************)
@@ -157,6 +160,8 @@ typing_abs
    quantification in the abs rule.)
 
 *)
+
+
 
 Inductive typing_e : ctx -> exp 0 -> typ -> Prop :=
   | typing_e_var : forall E (x : atom) T,

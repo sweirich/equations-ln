@@ -14,6 +14,9 @@
    Some definitions in this library are from equations example 
    https://github.com/mattam82/Coq-Equations/blob/master/examples/Fin.v 
 
+   There is a lot more we can do with [fin], but this is enough for 
+   STLC (and we don't need all of it).
+
 *)
 
 (* ----------- imports --------------- *)
@@ -34,35 +37,41 @@ Derive EqDec for fin.
 
 (* ------- type coercions ------ *)
 
-(* Coerce m to a smaller range, as long as it is not 0. 
-   does not change the value of m. *)
+(* Coerce [m] to a smaller range, as long as it is not 0. 
+   does not change the "value" of [m]. *)
 (* NB: used in "open" *)
 Equations decrease_fin (k : nat) (m : fin (S k)) : option (fin k) :=
   decrease_fin O _ := None ;
   decrease_fin (S _) fO := Some fO;
   decrease_fin (S m) (fS n) := option_map fS (decrease_fin m n).
 
-(* Coerce m to a larger range, without changing its value. *)
+(* Coerce [m] to a larger range, without changing its value. *)
 (* NB: used in "close" operation. *)
 Equations increase_fin {n : nat} (m : fin n) : fin (S n) :=
-  increase_fin (@fO n1) := fO;
-  increase_fin (@fS n1 m) := fS (increase_fin m). 
-
+  increase_fin fO  := fO;
+  increase_fin (fS m) := fS (increase_fin m). 
 
 (* -------- isomorphism with {m : nat | m < n} ------- *)
 
-(** We can inject [fin n] into [nat]. Forget the rich type. *)
+(* Coerce between [fin] and [nat], preserving value.
+
+    f0 <-> O
+    fS f0 <-> S O
+    fS (fS f0) <-> S (S O)
+*)
+  
+(* We can inject [fin n] into [nat]. Forget the rich type. *)
 Equations fog {n} (f : fin n) : nat :=
   fog fO     := 0 ;
   fog (fS f) := S (fog f).
 
-(** And come back again. Note: we produce a fin 
-    with the smallest possible range. *)
+(* And come back again. Note: we produce a [fin] with the 
+   smallest possible range. *)
 Equations gof (n : nat) : fin (S n) :=
   gof O := fO ;
   gof (S n) := fS (gof n).
 
-(* -------- properties ------- *)
+(* ------- properties of definitions above ------- *)
 
 Lemma fog_gof (n : nat) : fog (gof n) = n.
 Proof with auto with arith.
@@ -86,7 +95,7 @@ Proof.
   f_equal; auto.
 Qed.
 
-(* decrase fin is injective *)
+(* decrease fin is injective *)
 Lemma decrease_fin_inj : forall {n} (f f0 : fin (S n)),
     (decrease_fin n f = decrease_fin n f0) -> f = f0.
 Proof.
@@ -160,8 +169,7 @@ Proof.
   reflexivity.
 Qed.
 
-(* But since gof gives us the largest number in the range, we 
-   cannot decrease it. *)
+(* Since gof gives us the largest number in the range, we cannot decrease it. *)
 Lemma decrease_fin_gof : forall n, decrease_fin n (gof n) = None.
 Proof.
   induction n.

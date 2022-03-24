@@ -8,10 +8,8 @@
 
 
 Require Import Metalib.Metatheory.
-Require Import Metalib.LibLNgen.
 
 Require Import Utf8 Arith Compare_dec Lia.
-
 (* equations *)
 Set Warnings "-notation-overridden".
 Require Import Relation_Operators Program.
@@ -19,9 +17,6 @@ Close Scope program_scope.
 From Equations Require Import Equations.
 
 Require Export Stlc.Fin.
-Require Export Stlc.Classes.
-Import SyntaxNotations.
-Open Scope syntax_scope.
 
 (***********************************************************************)
 (** * Syntax of STLC *)
@@ -46,25 +41,14 @@ Scheme Equality for typ.
 (* Expressions are indexed by the number of *bound variables*
    that appear in terms. *)
 
-Definition v (e : nat -> Set) := var.
-
 Inductive exp : nat ->  Set :=  (*r expressions *)
  | var_b : forall {n}, fin n -> exp n
  | var_f : forall {n} (x:var), exp n
  | abs   : forall {n} (e:exp (S n)), exp n
  | app   : forall {n} (e1:exp n) (e2:exp n), exp n.
 
-(* Cargo culting equations *)
+(* I'm not sure what these do. *)
 Derive Signature NoConfusion NoConfusionHom for exp.
-
-(* like an inversion tactic for equalities *)
-Ltac noconf_exp := 
-  match goal with 
-    | [ H : var_b _ = var_b _ |- _ ] => noconf H
-    | [ H : var_f _ = var_f _ |- _ ] => noconf H
-    | [ H : abs _ = abs _ |- _ ] => noconf H
-    | [ H : app _ _ = app _ _ |- _ ] => noconf H
-  end.
 
 (* We cannot derive decidable equality automatically, but 
    we can define it. *)
@@ -119,18 +103,30 @@ Fixpoint size_exp {n} (e1 : exp n) : nat :=
 
  *)
 
-(* Weaken the number of binders allowed in an expression by 1 *)
+(* Weaken the number of bound variables allowed in an expression by 1 *)
+(*
 Equations weaken_exp {n} (e : exp n): exp (S n):= {
   weaken_exp  (var_b m) => var_b (increase_fin m);
   weaken_exp  (var_f x) => var_f x;
   weaken_exp  (abs t)   => abs (weaken_exp t);
   weaken_exp  (app f t) => app (weaken_exp f) (weaken_exp t)
-  }.
+  }. *)
+
+(* Can also write this as a Fixpoint. *)
+Fixpoint weaken_exp {n} (e : exp n) : exp (S n) :=
+  match e with 
+  | var_b m => var_b (increase_fin m)
+  | var_f x => var_f x
+  | abs t => abs (weaken_exp t)
+  | app f t => app (weaken_exp f) (weaken_exp t)
+  end.
 
 (* Substitute for a free variable. *)
 Equations subst_exp_wrt_exp {n} (u:exp n) (y:var) (e:exp n) : exp n :=
-  subst_exp_wrt_exp u y (var_b m)   := var_b m;
-  subst_exp_wrt_exp u y (var_f x)   := if x == y then u else var_f x;
+  subst_exp_wrt_exp u y (var_b m)   := 
+    var_b m;
+  subst_exp_wrt_exp u y (var_f x)   := 
+    if x == y then u else var_f x;
   subst_exp_wrt_exp u y (abs e1)    := 
     abs (subst_exp_wrt_exp (weaken_exp u) y e1);
   subst_exp_wrt_exp u y (app e1 e2) := 
@@ -191,6 +187,23 @@ Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
   open_exp_wrt_exp u (app e1 e2) := 
     app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
 
+
+(*
+Fixpoint open_exp_wrt_exp {k:nat} (u:exp k) 
+         (e:exp (S k)) : exp k :=
+  match e with 
+  | var_b m => match decrease_fin k m with
+        | None => u
+        | Some f => var_b f
+      end
+  | (var_f x) => var_f x
+  | (abs e)   =>
+      abs (open_exp_wrt_exp (weaken_exp u) e)
+  | (app e1 e2) =>
+    app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2)
+  end.
+*)
+
 (* Close *)
 
 (** Closing an expression means replacing a free variable x1 with a new bound
@@ -208,107 +221,3 @@ Equations close_exp_wrt_exp {k : nat} (x1 : var) (e1 : exp k) : exp (S k) :=
     abs (close_exp_wrt_exp x1 e2);
   close_exp_wrt_exp x1 (app e2 e3) := 
     app (close_exp_wrt_exp x1 e2) (close_exp_wrt_exp x1 e3).
-
-(***********************************************************************)
-(** * Class  instances *)
-(***********************************************************************)
-
-#[global] Instance Syntax_exp : Syntax exp := { 
-    fv := fun {n} => @fv_exp n;
-    size := fun {n} => @size_exp n; 
-    weaken := fun {n} =>  @weaken_exp n;
-    close := fun {n} => @close_exp_wrt_exp n;
-}.
-
-#[global] Opaque Syntax_exp.
-
-#[global] Instance Subst_exp : Subst exp exp := {
-    open := fun {n} => @open_exp_wrt_exp n;
-    subst := fun {n} => @subst_exp_wrt_exp n
-}.
-#[global] Opaque Subst_exp.
-
-(***********************************************************************)
-(** * Typing contexts *)
-(***********************************************************************)
-
-(** We represent typing contexts as association lists (lists of pairs of
-    keys and values) whose keys are [atom]s.
-*)
-
-Definition ctx : Set := list (atom * typ).
-
-(** For STLC, contexts bind [atom]s to [typ]s.
-
-    Lists are defined in Coq's standard library, with the constructors
-    [nil] and [cons].  The list library includes the [::] notation for
-    cons as well as standard list operations such as append, map, and
-    fold. The infix operation [++] is list append.
-
-    The Metatheory library extends this reasoning by instantiating the
-    AssocList library to provide support for association lists whose keys
-    are [atom]s.  Everything in this library is polymorphic over the type
-    of objects bound in the environment.  Look in AssocList.v for
-    additional details about the functions and predicates that we mention
-    below.  *)
-
-
-(***********************************************************************)
-(** * Typing relation *)
-(***********************************************************************)
-
-(** The definition of the typing relation is straightforward.  In
-    order to ensure that the relation holds for only well-formed
-    environments, we check in the [typing_var] case that the
-    environment is [uniq].  The structure of typing derivations
-    implicitly ensures that the relation holds only for locally closed
-    expressions.
-
-    Finally, note the use of cofinite quantification in
-    the [typing_abs] case.
-*)
-
-Inductive typing : ctx -> exp 0 -> typ -> Prop :=
- | typing_var : forall (G:ctx) (x:atom) (T:typ),
-     uniq G ->
-     binds x T G  ->
-     typing G (var_f x) T
- | typing_abs : forall (L:vars) (G:ctx) (T1:typ) (e:exp 1) (T2:typ),
-     (forall x , x `notin` L -> typing ([(x,T1)] ++ G) (e ^ var_f x) T2)  ->
-     typing G (abs e) (typ_arrow T1 T2)
- | typing_app : forall (G:ctx) (e1 e2:exp 0) (T2 T1:typ),
-     typing G e1 (typ_arrow T1 T2) ->
-     typing G e2 T1 ->
-     typing G (app e1 e2) T2 .
-
-Derive Signature for typing.
-
-(***********************************************************************)
-(** * Values and Small-step Evaluation *)
-(***********************************************************************)
-
-(** Finally, we define values and a call-by-name small-step evaluation
-    relation. In STLC, abstractions are the only value. *)
-
-Definition is_value (e : exp 0) : Prop :=
-  match e with
-  | abs _   => True
-  | _       => False
-  end.
-
-(** For [step_beta], note that we use [open_exp_wrt_exp] instead of
-    substitution --- no variable names are involved.
-
-    Note also the hypotheses in [step] that ensure that the relation holds
-    only for locally closed terms.  *)
-
-Inductive step : exp 0 -> exp 0 -> Prop :=
- | step_beta : forall (e1:exp 1)(e2:exp 0),
-     step (app (abs e1) e2) (e1 ^ e2)
- | step_app : forall (e1 e2 e1':exp 0),
-     step e1 e1' ->
-     step (app e1 e2) (app e1' e2).
-
-Derive Signature for step.
-
-#[global] Hint Constructors typing step : core.

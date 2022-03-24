@@ -1,8 +1,11 @@
 -R . Stlc
-Classes.v
 Fin.v
-Definitions.v
+Classes.v
+DefinitionsSyntax.v
 Lemmas.v
+ClassInstances.v
+ClassRewrites.v
+DefinitionsTyping.v
 Lec2.v
 
 
