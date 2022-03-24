@@ -49,10 +49,15 @@ Inductive exp : nat ->  Set :=  (*r expressions *)
 
 (* I'm not sure what these do. *)
 Derive Signature NoConfusion NoConfusionHom for exp.
+About eq_dec.
 
-(* We cannot derive decidable equality automatically, but 
-   we can define it. *)
+Print Instances EqDec.
+
+Instance Auto_EqDec : EqDec Atom.atom := Atom.eq_dec.
+Derive Subterm EqDec for exp.
+
 (* Decidable equality for expressions *)
+(*
 Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } := 
  exp_eq_dec (var_b m1) (var_b m2) with eq_dec m1 m2 =>  {
       exp_eq_dec _ _ (left eq_refl) := left _ ; 
@@ -73,6 +78,7 @@ Equations exp_eq_dec {n} (e1 : exp n) (e2: exp n) : { e1 = e2 } + { e1 <> e2 } :
       exp_eq_dec _ _ (_ , right p) := in_right } ; 
 
  exp_eq_dec  _  _ := in_right.
+*)
 
 (* Calculate the size of an expression. We could do this 
    with equations, but it is simple enough not to. *)
@@ -174,6 +180,7 @@ end.
     term that we are opening. As with [subst] we need to weaken this term when
     we go under a binder.  *)
 
+(* This is only correct if we call it with exp 0 *)
 
 Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
   open_exp_wrt_exp u (var_b m) :=
@@ -187,6 +194,21 @@ Equations open_exp_wrt_exp {k:nat} (u:exp k) (e:exp (S k)) : exp k :=
   open_exp_wrt_exp u (app e1 e2) := 
     app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
 
+(*
+ALTERNATIVE approach.
+
+Equations open_exp_wrt_exp {k:nat} (u:exp 0) (e:exp (S k)) : exp k :=
+  open_exp_wrt_exp u (var_b m) :=
+     match decrease_fin k m with
+        | None => (weaken_exp_by k u)
+        | Some f => var_b f
+      end;
+  open_exp_wrt_exp u (var_f x)   := var_f x;
+  open_exp_wrt_exp u (abs e)     := 
+    abs (open_exp_wrt_exp u e);
+  open_exp_wrt_exp u (app e1 e2) := 
+    app (open_exp_wrt_exp u e1) (open_exp_wrt_exp u e2).
+*)
 
 (*
 Fixpoint open_exp_wrt_exp {k:nat} (u:exp k) 

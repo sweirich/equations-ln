@@ -68,7 +68,7 @@ WORKING GROUP PLAN (equations)
   compare definitions with equations and Fixpoint
   
 - Lemmas.v
-  pick a proof and try to recreate/simplify it.
+  pick a proof and try to recreate/simplify it
 
 
 

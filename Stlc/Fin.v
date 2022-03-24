@@ -37,7 +37,7 @@ Derive EqDec for fin.
 
 (* ------- type coercions ------ *)
 
-(* Coerce [m] to a smaller range, as long as it is not 0. 
+(* Coerce [m] to a smaller range, as long as it is not k. 
    does not change the "value" of [m]. *)
 (* NB: used in "open" *)
 Equations decrease_fin (k : nat) (m : fin (S k)) : option (fin k) :=
@@ -65,24 +65,35 @@ Equations fog {n} (f : fin n) : nat :=
   fog fO     := 0 ;
   fog (fS f) := S (fog f).
 
+Print fog_graph.
+
 (* And come back again. Note: we produce a [fin] with the 
    smallest possible range. *)
 Equations gof (n : nat) : fin (S n) :=
   gof O := fO ;
   gof (S n) := fS (gof n).
 
+Print fog.
+Print gof.
+
 (* ------- properties of definitions above ------- *)
 
 Lemma fog_gof (n : nat) : fog (gof n) = n.
 Proof with auto with arith.
-  intros. funelim (gof n)... simp fog; congruence.
+  intros. funelim (gof n). info_auto.
+  simp fog. congruence.
 Qed.
 
 Lemma fog_inj {n} (f : fin n) : fog f < n.
 Proof with auto with arith. 
-  intros. depind f; simp fog...
+  intros.
+  funelim (fog f); simp fog...
+(*  induction f; simp fog...
+  dependent induction f; simp fog...
+  depind f; simp fog... *)
 Qed.
 
+Require Import Coq.Logic.EqdepFacts.
 
 (* increase_fin is injective *)
 Lemma increase_fin_inj : forall {n} (f f0 : fin n),
@@ -90,10 +101,19 @@ Lemma increase_fin_inj : forall {n} (f f0 : fin n),
 Proof.
   intros n f g.
   funelim (increase_fin f).
-  all: dependent elimination g; simp increase_fin. 
-  all: intros h; noconf h; auto.
-  f_equal; auto.
+  all: dependent elimination g; simp increase_fin.
+  auto.
+  intros h. inversion h.
+  intros h. inversion h.
+  intros h. 
+  noconf h. f_equal. auto.   (* no axiom *)
+  (* These two proofs work, but need an axiom *)
+(*  inversion h. dependent destruction H1. f_equal. auto. *)
+(*  inversion h. apply Eqdep.EqdepTheory.inj_pair2 in H1.
+  f_equal. auto. *)
 Qed.
+
+Print Assumptions increase_fin_inj.
 
 (* decrease fin is injective *)
 Lemma decrease_fin_inj : forall {n} (f f0 : fin (S n)),
@@ -186,3 +206,28 @@ Create HintDb fin.
 #[export] Hint Resolve decrease_to_fin : fin.
 #[export] Hint Resolve decrease_increase_fin : fin.
 #[export] Hint Resolve increase_not_n : fin.
+
+
+Inductive le : nat -> nat -> Type :=
+| le_O n : 0 <= n
+| le_S {n m} : n <= m -> S n <= S m
+where "n <= m" := (le n m).
+Derive Signature for le.
+Hint Constructors le.
+Equations le_S_inv {n m} (p : S n <= S m) : n <= m :=
+le_S_inv (le_S p) := p.
+
+Equations fin_inj {n} {m} (f : fin n) (k : n <= m) : fin m :=
+fin_inj fO (le_S p) := fO;
+fin_inj (fS f) (le_S p) := fS (fin_inj f p).
+
+Lemma foo : forall m n, m <= S (n + m). Admitted.
+
+Equations fin_plus {n m} (x : fin n) (y : fin m) : fin (n + m) := 
+fin_plus (@fO n) f := fin_inj f _ ;
+fin_plus (@fS n x) y := fS (fin_plus x y). 
+Next Obligation. apply foo. Defined.
+
+Print fin_plus.
+Print fin_plus_obligations_obligation_1.
+(** Won't pass the guardness check which diverges anyway. *)

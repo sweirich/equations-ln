@@ -87,8 +87,7 @@ Lemma size_exp_weaken_exp :
 (forall n1 (e1 : exp n1),
   size_exp (weaken_exp e1) = size_exp e1).
 Proof.
-  intros n1 e1.
-  dependent induction e1; program_simpl.
+  intros n1 e1. induction e1; default_simp.
 Qed.
 
 #[global] Hint Resolve size_exp_weaken_exp : lngen.
@@ -153,30 +152,33 @@ Qed.
 Ltac default_auto ::= auto with lngen brute_force; tauto.
 Ltac default_autorewrite ::= simp_stlc.
 
+Hint Extern 1 (_ = _) => match goal with 
+ | [ H : increase_fin _ = increase_fin _ |- _ ] => apply increase_fin_inj end : lngen.
+
+Check increase_not_n.
+
+Hint Extern 1 (_ = _) => match goal with 
+ | [ H : gof _ = increase_fin _ |- _ ] => exfalso; eapply increase_not_n end : lngen.
+
 Lemma close_exp_wrt_exp_inj :
 (forall k (e1 : exp k) e2 x1,
   close_exp_wrt_exp x1 e1 = close_exp_wrt_exp x1 e2 ->
   e1 = e2).
 Proof.
   intros k e1 e2 x1.
-  funelim (close_exp_wrt_exp x1 e1).
-  all: default_simp.
-  all: match goal with
-          | |- _ = ?term => destruct term
-        end.
-  all: try simp close_exp_wrt_exp in H.
-  all: try noconf_exp.
-  all: try discriminate.
-  all: try simp close_exp_wrt_exp in *.
-  all: try (destruct (x1 == x); simpl in H; try discriminate).
-  all: try solve [f_equal; eapply increase_fin_inj; eauto].
-  all: try noconf_exp.
-  all: try solve [exfalso; eapply increase_not_n; eauto].
-  all: try destruct (x1 == x2) eqn:h.
-  all: try noconf_exp; subst; auto.
-  all: try noconf H.
-  all: try solve [exfalso; eapply increase_not_n; eauto].
-  all: default_simp.
+  induction e1, e2; simp close_exp_wrt_exp; intros.
+  all:
+    noconf H;
+    repeat lazymatch goal with
+           | [ H: increase_fin ?X = increase_fin ?Y |- _ ] =>
+               apply increase_fin_inj in H; subst; auto
+           | [ H: increase_fin ?X = gof ?Y |- _ ] => symmetry in H
+           | [ H: gof ?X = increase_fin ?Y |- _ ] =>
+               apply increase_not_n in H; contradiction
+           | [ H: context[?X == ?Y] |- _ ] =>
+               destruct (X == Y); subst; noconf H; auto
+           | _ => f_equal; intuition
+           end.
 Qed.
 
 #[export] Hint Immediate close_exp_wrt_exp_inj : lngen.
