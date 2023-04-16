@@ -637,8 +637,7 @@ Proof.
   + inversion H0. subst. inversion H5.
   + left. simpl. auto.
   + destruct IHtyping1; auto.
-     ++ depelim e1; simpl in H2; try done; clear H2.
-        depelim H. inversion H2. subst. clear H2.
+     ++ destruct e1; simpl in H2; try done; clear H2.
         right.
         exists (open e2 e1).
         eauto.
