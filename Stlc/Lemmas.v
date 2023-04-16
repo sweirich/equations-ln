@@ -117,12 +117,13 @@ Qed.
 
 #[global] Hint Resolve size_exp_min : lngen.
 
+From Hammer Require Import Tactics.
 Lemma size_exp_close_exp_wrt_exp :
 (forall n1 (e1 : exp n1) x1,
   size_exp (close_exp_wrt_exp x1 e1) = size_exp e1).
 Proof.
-intros n1 e1 x1.  
-funelim (close_exp_wrt_exp x1 e1); default_simp. 
+  intros n1 e1 x1.
+  funelim (close_exp_wrt_exp x1 e1); default_simp. 
 Qed.
 
 #[global] Hint Resolve size_exp_close_exp_wrt_exp : lngen.
