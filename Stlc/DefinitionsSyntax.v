@@ -41,11 +41,16 @@ Scheme Equality for typ.
 (* Expressions are indexed by the number of *bound variables*
    that appear in terms. *)
 
-Inductive exp : nat ->  Set :=  (*r expressions *)
- | var_b : forall {n}, fin n -> exp n
- | var_f : forall {n} (x:var), exp n
- | abs   : forall {n} (e:exp (S n)), exp n
- | app   : forall {n} (e1:exp n) (e2:exp n), exp n.
+Inductive exp (n : nat) : Set :=  (*r expressions *)
+ | var_b : fin n -> exp n
+ | var_f : forall (x:var), exp n
+ | abs   : forall (e:exp (S n)), exp n
+ | app   : forall (e1:exp n) (e2:exp n), exp n.
+
+Arguments var_b {n}%type_scope.
+Arguments var_f {n}%type_scope.
+Arguments abs {n}%type_scope.
+Arguments app {n}%type_scope.
 
 (* [Signature] creates a sigma type that allowing packing values with their
    constructor index.

@@ -562,16 +562,15 @@ Lemma preservation : forall (E : ctx) e e' T,
 Proof.
   intros E e e' T H.
   generalize e'.
-  dependent induction H; intros e0' S; depelim S; subst.
-  - depelim H. inversion H0. subst.
+  induction H; intros e0' S; inversion S; subst.
+  - inversion H; subst.
     pick fresh x for (L \u fv e0).
     rewrite (subst_intro _ _ x); auto.
     eapply typing_subst_simple; auto.
   - eauto.
 Qed.
 
-(* NOTE: instead of inversion for step derivation, need to use depelim. Otherwise get 
- existT equalities that need to be resolved via inj_pair2. *)
+(* UPDATE: No need for depelim anymore! Yay! *)
 
 (*************************************************************************)
 (** ** Progress *)
@@ -637,8 +636,7 @@ Proof.
   + inversion H0. subst. inversion H5.
   + left. simpl. auto.
   + destruct IHtyping1; auto.
-     ++ depelim e1; simpl in H2; try done; clear H2.
-        depelim H. inversion H2. subst. clear H2.
+     ++ destruct e1; simpl in H2; try done; clear H2.
         right.
         exists (open e2 e1).
         eauto.
