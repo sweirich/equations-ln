@@ -112,7 +112,7 @@ Qed.
 Lemma size_exp_min :
 (forall n (e1 : exp n), (1 <= size_exp e1)%nat).
 Proof.
-  intros n e1.  dependent induction e1; default_simp.
+  intros n e1.  induction e1; default_simp.
 Qed.
 
 #[global] Hint Resolve size_exp_min : lngen.
@@ -140,8 +140,9 @@ Lemma size_exp_open_exp_wrt_exp_var :
 (forall k (e : exp (S k)) x,
   size_exp (open_exp_wrt_exp (var_f x) e) = size_exp e).
 Proof.
-intros k e x.
-dependent induction e; default_simp. destruct_option; default_simp.
+  enough (forall k (e : exp k) k1 x (e1 : exp (S k1)),
+             k = S k1 -> e ~= e1 -> size_exp (open_exp_wrt_exp (var_f x) e1) = size_exp e1) by eauto.
+  induction e; intros; subst; default_simp. destruct_option; default_simp.
 Qed.
 
 #[global] Hint Resolve size_exp_open_exp_wrt_exp_var : lngen.

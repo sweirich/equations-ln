@@ -562,7 +562,7 @@ Lemma preservation : forall (E : ctx) e e' T,
 Proof.
   intros E e e' T H.
   generalize e'.
-  dependent induction H; intros e0' S; inversion S; subst.
+  induction H; intros e0' S; inversion S; subst.
   - inversion H; subst.
     pick fresh x for (L \u fv e0).
     rewrite (subst_intro _ _ x); auto.
